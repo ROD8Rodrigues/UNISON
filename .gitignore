@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+server/data/
+server/uploads/
+server/prisma/dev.db
+coverage/
+.DS_Store
+Thumbs.db
+desktop/release/
+mobile/android/
+mobile/ios/
