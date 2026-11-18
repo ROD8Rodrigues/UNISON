@@ -17,14 +17,17 @@ O instalador atual tem 112,99 MiB e o portátil 101,05 MiB, então ambos cabem c
 
 ## Estado do repositório
 
-- Repositório público criado, vazio, branch padrão `main`.
-- Remote local: `git@github.com:ROD8Rodrigues/UNISON.git`.
-- Branch local original: `master`; renomeie para `main` antes do primeiro push.
-- A chave SSH `unison_deploy` ainda **não** está cadastrada no GitHub. Há uma credencial HTTPS funcional para a conta `ROD8Rodrigues` no Windows Credential Manager.
+- Código publicado em `main` no commit `2cfaf1c` (`feat: UNISON 1.0.0`).
+- Release **v1.0.0** publicado em `https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0`.
+- Assets publicados e verificados por SHA-256:
+  - `UNISON-Setup-1.0.0.exe` — 118.476.579 bytes
+  - `UNISON-Portable-1.0.0.exe` — 105.956.457 bytes
+  - `SHA256SUMS.txt` — 182 bytes
+- O push foi feito via HTTPS com a credencial do Windows Credential Manager. A chave SSH `unison_deploy` continua **não** cadastrada no GitHub.
 
 ## 1. Enviar o código
 
-### Opção A — HTTPS (funciona com a credencial já salva)
+### Opção A — HTTPS (usada na publicação)
 
 ```powershell
 git branch -m main
@@ -32,7 +35,7 @@ git remote set-url origin https://github.com/ROD8Rodrigues/UNISON.git
 git push -u origin main
 ```
 
-### Opção B — SSH
+### Opção B — SSH (requer cadastrar a chave)
 
 Cadastre a chave pública em [github.com/settings/ssh/new](https://github.com/settings/ssh/new):
 
@@ -143,12 +146,12 @@ Não substitua os arquivos de um release já publicado: quem baixou antes pode t
 
 ## Checklist
 
-- [ ] Branch local renomeada para `main`.
-- [ ] Código enviado para `ROD8Rodrigues/UNISON`.
-- [ ] Tag `v1.0.0` criada.
-- [ ] Release notes coladas de `docs/releases/v1.0.0.md`.
-- [ ] Setup, Portátil e `SHA256SUMS.txt` anexados.
-- [ ] Release publicado.
-- [ ] Download testado em janela anônima.
-- [ ] Hashes conferidos com `Get-FileHash`.
+- [x] Branch local renomeada para `main`.
+- [x] Código enviado para `ROD8Rodrigues/UNISON`.
+- [x] Tag `v1.0.0` criada.
+- [x] Release notes coladas de `docs/releases/v1.0.0.md`.
+- [x] Setup, Portátil e `SHA256SUMS.txt` anexados.
+- [x] Release publicado.
+- [x] Download anônimo verificado (HTTP 200 nos três assets) e digest SHA-256 conferido.
+- [x] Hashes conferidos com `Get-FileHash` e com o digest da API do GitHub.
 - [ ] Link do release divulgado.
