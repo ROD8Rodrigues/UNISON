@@ -401,19 +401,39 @@ O código é single-node; para escala horizontal, migre para PostgreSQL + Redis 
 
 ## Status desta validação
 
-O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_ENV=production` foram validados localmente com `scripts/smoke-alwaysdata.ps1`: `/health`, SPA, service worker, registro, login, refresh cookie, `/me`, SQLite e uploads passaram. O cookie `Secure`/`HttpOnly`/`SameSite=Lax` também foi verificado com `COOKIE_SECURE=true`. A conta alwaysdata `telawork`, o usuário SSH `telawork` e o host `ssh-telawork.alwaysdata.net:22` já existem e aceitam autenticação por senha.
+O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_ENV=production` foram validados localmente com `scripts/smoke-alwaysdata.ps1`: `/health`, SPA, service worker, registro, login, refresh cookie, `/me`, SQLite e uploads passaram. O cookie `Secure`/`HttpOnly`/`SameSite=Lax` também foi verificado com `COOKIE_SECURE=true`.
 
-O GitHub já está publicado: código em `main` (`2cfaf1c`), release [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) com instalador, portátil e checksums. O upload do zip, o `npm ci`, a criação do site Node.js e a troca do site Apache padrão ainda **não** foram concluídos; por isso `https://telawork.alwaysdata.net` ainda mostra a página padrão da alwaysdata.
+**Deploy executado em 18/11/2026:**
+
+- chave `unison_deploy` cadastrada; SSH por chave validado;
+- `UNISON-alwaysdata-1.0.0.zip` enviado e extraído em `~/unison`;
+- `npm ci --omit=dev` concluído (117 pacotes, 0 vulnerabilidades);
+- `server/.env` criado com `NODE_ENV=production`, `JWT_SECRET` de 96 caracteres, `COOKIE_SECURE=true`, `TRUST_PROXY=true`, `APP_URL`/`CORS_ORIGINS` em `https://telawork.alwaysdata.net`;
+- pastas `data/` e `uploads/` criadas com permissão `700`;
+- site Node.js 24 ativo, servindo `https://telawork.alwaysdata.net` (substituiu o Apache padrão);
+- desktop configurado com `serverUrl: https://telawork.alwaysdata.net` (backup local em `desktop-config.json.bak-local`).
+
+**Smoke test remoto aprovado:** `/health`, SPA, service worker, manifest, asset JS, registro de dois usuários, login, cookie `Secure`/`HttpOnly`/`SameSite=Lax`, refresh, `/me`, DM, mensagem entre usuários, Socket.IO com dois clientes, `call:start`/`call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended` e upload/download de arquivo. Os usuários e o arquivo de teste foram removidos depois.
+
+**Pendências reais:**
+
+- O campo **Working directory** do site está com o caminho duplicado (`/home/telawork/home/telawork/unison/server`). O site está funcionando por um symlink temporário criado em `~/home/telawork/unison/server`. Corrija o campo para `unison/server` e depois remova o symlink.
+- **Force HTTPS** ainda não está ativado: `http://telawork.alwaysdata.net/health` responde `200` em vez de redirecionar. Ative em **Web → Sites → Modificar site → SSL → Force HTTPS**.
+- A sinalização de chamadas foi validada, mas **mídia real** (câmera/microfone, duas máquinas, NAT) ainda não foi testada.
+- SMTP não configurado: emails de verificação/recuperação ficam apenas no log do servidor.
+- Backup externo e teste com duas máquinas ainda pendentes.
+
+O GitHub também está publicado: código em `main` e release [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) com instalador, portátil e checksums.
 
 ### Chave SSH de deploy
 
-A chave pública `unison_deploy` ainda precisa ser cadastrada em **Remote access → SSH/SFTP → Chaves SSH** no painel alwaysdata:
+A chave pública `unison_deploy` já está cadastrada em **Remote access → SSH/SFTP → Chaves SSH** e a conexão por chave foi validada:
 
 ```text
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJ9VIXMpBW9IWk26KI4H0RNS1HrrTjOoUsqFawnyFrY unison-deploy
 ```
 
-Fingerprint: `SHA256:OSa2y/A+kqAY95l0ynjeb6vAKVRbOugNkXk/fVAEWCo`. A chave privada fica em `C:\Users\Chris\.ssh\unison_deploy` e nunca deve ser versionada. Até o cadastro, qualquer tentativa de `ssh -i ...` retorna `Permission denied (publickey)`. A mesma chave pode ser cadastrada no GitHub, mas o repositório já foi publicado via HTTPS.
+Fingerprint: `SHA256:OSa2y/A+kqAY95l0ynjeb6vAKVRbOugNkXk/fVAEWCo`. A chave privada fica em `C:\Users\Chris\.ssh\unison_deploy` e nunca deve ser versionada.
 
 ### Se o prompt SSH não aceitar a senha
 
@@ -430,21 +450,26 @@ Nunca envie a senha em arquivos, issues ou commits.
 
 - [x] Conta alwaysdata Free criada (`telawork`).
 - [x] Pacote gerado com `scripts/prepare-alwaysdata.ps1`.
-- [x] Usuário SSH criado (`telawork`); autenticação por senha disponível.
-- [ ] Chave pública `unison_deploy` cadastrada no painel alwaysdata.
-- [ ] Conexão SSH por chave validada.
-- [ ] Zip enviado e extraído em `~/unison`.
-- [ ] `npm ci --omit=dev` concluído em `~/unison/server`.
-- [ ] Pastas `data/` e `uploads/` criadas.
-- [ ] Node.js 24 selecionado.
-- [ ] Site Apache padrão removido/substituído.
-- [ ] Site Node.js criado com comando e diretório corretos.
-- [ ] Variáveis de ambiente configuradas.
-- [ ] HTTPS/Let's Encrypt e Force HTTPS ativos.
-- [ ] `/health` retorna `status: ok`.
-- [ ] Primeira conta criada e testada.
-- [ ] Mensagem e upload persistem após restart.
-- [ ] `serverUrl` configurado no desktop.
+- [x] Usuário SSH criado (`telawork`).
+- [x] Chave pública `unison_deploy` cadastrada no painel alwaysdata.
+- [x] Conexão SSH por chave validada.
+- [x] Zip enviado e extraído em `~/unison`.
+- [x] `npm ci --omit=dev` concluído em `~/unison/server`.
+- [x] Pastas `data/` e `uploads/` criadas.
+- [x] Node.js 24 selecionado.
+- [x] Site Apache padrão removido/substituído.
+- [x] Site Node.js criado e respondendo.
+- [ ] Working directory corrigido para `unison/server` no painel.
+- [x] Variáveis de ambiente configuradas.
+- [x] HTTPS/Let's Encrypt ativo.
+- [ ] Force HTTPS ativo.
+- [x] `/health` retorna `status: ok`.
+- [x] Registro, login, cookie seguro, refresh e `/me` testados.
+- [x] Mensagem e upload testados.
+- [x] Sinalização de chamada testada (`call:start`, `accept`, `webrtc:signal`, `ended`).
+- [ ] Chamada real com câmera/microfone validada.
+- [x] `serverUrl` configurado no desktop.
+- [ ] Desktop reiniciado e conectado ao servidor remoto.
 - [ ] Duas máquinas conectadas à mesma conta.
 - [ ] Backup externo configurado.
 - [x] Link do instalador publicado no GitHub Releases.

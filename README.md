@@ -10,7 +10,7 @@ Este repositório contém a reconstrução de produção do protótipo original:
 
 - **Windows x64:** [UNISON 1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.0.0.exe`) e portátil (`UNISON-Portable-1.0.0.exe`), com `SHA256SUMS.txt`.
 - **Código-fonte:** [github.com/ROD8Rodrigues/UNISON](https://github.com/ROD8Rodrigues/UNISON).
-- **Web/PWA:** disponível quando o backend estiver publicado em `https://telawork.alwaysdata.net` (deploy pendente).
+- **Web/PWA:** [telawork.alwaysdata.net](https://telawork.alwaysdata.net) — servidor multiusuário online. O Force HTTPS do painel ainda está pendente; use sempre o link `https://`.
 
 Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um aviso. Confira o SHA-256 antes de executar.
 
@@ -19,6 +19,7 @@ Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um 
 - **Backend:** API REST + Socket.IO implementados, com autenticação, sessões, mensagens, comunidades, moderação, uploads, notificações e chamadas.
 - **Frontend:** aplicação React completa, responsiva, com tema escuro/neon, PWA e fluxos reais ligados à API.
 - **Aplicativo Windows:** instalador NSIS e executável portátil x64 com Electron, backend e SQLite embutidos; dados em `%APPDATA%\UNISON`; modo local isolado e modo servidor remoto opcional.
+- **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
 - **Testes automatizados:** 16 testes de API/realtime no servidor e 13 testes de frontend, todos passando.
 - **Qualidade:** lint e typecheck limpos nos dois projetos; build de produção concluído; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O cliente e o desktop reportam um advisory **dev-only** de `picomatch` (ReDoS, CVE-2026-112366) sem versão corrigida publicada; o pacote não entra no runtime do servidor nem nos `.exe`.
 - **Smoke test de produção:** SPA, service worker, manifest, cache de assets, Cookie de refresh seguro, registro/login e 404 JSON validados.

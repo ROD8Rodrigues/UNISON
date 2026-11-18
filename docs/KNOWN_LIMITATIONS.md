@@ -142,7 +142,7 @@ Consulte [SECURITY.md](SECURITY.md).
 - Não há migrations com rollback automático.
 - Não há suporte oficial a Windows Server/IIS além das orientações gerais.
 - Não há auto-update, assinatura de código, instalador MSI ou deployment corporativo (Intune/SCCM) pronto.
-- O deploy gratuito documentado usa alwaysdata Free: single-node, 1 GB de disco, 256 MB de RAM, sem domínio próprio e restrito a uso pessoal/não comercial. Não há SLA nem validação em uma conta real neste ambiente.
+- O deploy gratuito está ativo na conta alwaysdata Free `telawork`: single-node, 1 GB de disco, 256 MB de RAM, sem domínio próprio e restrito a uso pessoal/não comercial. O `Force HTTPS` do painel ainda não foi ativado; use sempre `https://telawork.alwaysdata.net`.
 - O download via GitHub Releases exige conta GitHub e repositório público para acesso anônimo; o instalador continua sem assinatura digital e sujeito ao aviso do SmartScreen.
 - Não há migração automática do banco local do desktop (modo standalone) para o servidor remoto; o modo remoto começa com os dados do servidor.
 
@@ -156,7 +156,6 @@ Consulte [SECURITY.md](SECURITY.md).
 | Instalação/publicação mobile | Empacotamento nativo e contas de loja |
 | Push em background | Web Push/VAPID ou app nativo |
 | Validação de produção em domínio real | DNS, TLS e proxy reverso |
-| Multiusuário real no desktop | Backend UNISON publicado com HTTPS/DNS/TLS |
 | Assinatura e reputação SmartScreen | Certificado Authenticode e processo de assinatura |
 | Auto-update seguro | Servidor de updates, assinatura e política de canais |
 | Desktop em Windows 11/ARM64/macOS/Linux | Builds, assinatura e validação nesses alvos |
@@ -172,5 +171,6 @@ Consulte [SECURITY.md](SECURITY.md).
 - Segurança: headers, CORS, autorização, validação, uploads, revogação de sessão e isolamento de salas cobertos por testes.
 - Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado.
 - Desktop, controles observados: backend em `127.0.0.1`, `contextIsolation`/`sandbox`, cookie de refresh `HttpOnly`/`SameSite=Lax`/`Path=/api/auth`, `Secure=false` apenas em loopback e `serverUrl` remoto restrito a HTTPS.
+- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Mídia real e duas máquinas ainda não foram testadas.
 
 Tudo além disso deve ser tratado como **não validado** até execução em ambiente real.
