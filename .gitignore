@@ -11,5 +11,15 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop/release/
+desktop/staging/
+desktop/.dev-data/
+# Pacote gerado por scripts/prepare-alwaysdata.ps1 (contém o build de deploy).
+deploy/
+# O ícone do desktop é um asset de origem gerado por scripts/make-icon.ps1.
+!desktop/build/
+!desktop/build/icon.ico
+# Segredo local de deploy (JWT_SECRET); nunca versionar.
+key.txt
 mobile/android/
 mobile/ios/
+audit.json

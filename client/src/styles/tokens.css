@@ -1,0 +1,96 @@
+/* ==========================================================================
+   UNISON design tokens
+   One restrained palette, two dark themes and a user-selectable accent.
+   ========================================================================== */
+
+:root {
+  --accent: #c9a0dc;
+  --accent-contrast: #0a080d;
+  --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
+  --accent-softer: color-mix(in srgb, var(--accent) 7%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 32%, transparent);
+
+  --bg: #0a080d;
+  --bg-deep: #060409;
+  --surface: #0f0c12;
+  --surface-1: #141017;
+  --surface-2: #19131d;
+  --surface-3: #211a26;
+  --surface-hover: #1e1723;
+  --surface-active: #271e2e;
+  --line: rgba(240, 230, 248, 0.075);
+  --line-strong: rgba(240, 230, 248, 0.14);
+  --line-accent: color-mix(in srgb, var(--accent) 26%, transparent);
+
+  --text: #f3eef7;
+  --text-soft: #d0c6d8;
+  --muted: #978b9f;
+  --muted-strong: #b3a6bc;
+  --faint: #6f6478;
+
+  --danger: #ff6f7d;
+  --danger-bg: rgba(255, 111, 125, 0.1);
+  --danger-line: rgba(255, 111, 125, 0.28);
+  --warning: #f5ba5c;
+  --success: var(--accent);
+
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.55);
+  --shadow-accent: 0 14px 38px color-mix(in srgb, var(--accent) 14%, transparent);
+
+  --font: "Inter", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --rail-width: 76px;
+  --sidebar-width: 312px;
+  --space-nav-width: 258px;
+  --header-height: 68px;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="midnight"] {
+  --bg: #080b11;
+  --bg-deep: #06080d;
+  --surface: #0d1119;
+  --surface-1: #111622;
+  --surface-2: #161d2b;
+  --surface-3: #1c2434;
+  --surface-hover: #1a2231;
+  --surface-active: #212b3c;
+  --line: rgba(218, 229, 248, 0.075);
+  --line-strong: rgba(218, 229, 248, 0.15);
+  --text: #eef2fa;
+  --text-soft: #c7d0e1;
+  --muted: #8994a8;
+  --muted-strong: #a5b0c2;
+  --faint: #5d687c;
+}
+
+:root.reduce-motion *,
+:root.reduce-motion *::before,
+:root.reduce-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

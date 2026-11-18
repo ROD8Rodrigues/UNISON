@@ -1,0 +1,92 @@
+{
+  "name": "unison-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplicativo desktop do UNISON para Windows",
+  "main": "main.js",
+  "author": "UNISON",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-icon.ps1",
+    "check": "node --check main.js && node --check scripts/prepare.js && node --check scripts/after-pack.js",
+    "prepare:dist": "node scripts/prepare.js",
+    "pack": "npm run prepare:dist && electron-builder --win --dir",
+    "dist": "npm run prepare:dist && electron-builder --win",
+    "smoke": "electron . --smoke-test"
+  },
+  "devDependencies": {
+    "electron": "45.3.3",
+    "electron-builder": "26.18.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.8"
+  },
+  "build": {
+    "appId": "com.unison.desktop",
+    "productName": "UNISON",
+    "copyright": "Copyright © 2026 UNISON",
+    "asar": true,
+    "npmRebuild": false,
+    "compression": "normal",
+    "afterPack": "scripts/after-pack.js",
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "build/icon.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "staging/server",
+        "to": "app/server"
+      },
+      {
+        "from": "staging/client",
+        "to": "app/client"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "UNISON-Setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "UNISON",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "UNISON-Portable-${version}.${ext}"
+    }
+  }
+}

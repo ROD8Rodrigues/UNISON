@@ -1,0 +1,56 @@
+{
+  "id": "/",
+  "name": "UNISON",
+  "short_name": "UNISON",
+  "description": "Converse, colabore e conecte-se em tempo real. Mensagens, comunidades e chamadas em qualquer dispositivo.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0a080d",
+  "theme_color": "#0a080d",
+  "categories": ["social", "communication", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Conversas",
+      "short_name": "Conversas",
+      "url": "/app",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Amigos",
+      "short_name": "Amigos",
+      "url": "/app/friends",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Espaços",
+      "short_name": "Espaços",
+      "url": "/app/spaces",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
