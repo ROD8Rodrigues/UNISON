@@ -13,11 +13,13 @@ import {
   Menu,
   MessageSquareText,
   Phone,
+  PhoneOff,
   Pin,
   PinOff,
   Search,
   Settings2,
   Video,
+  Volume2,
   X,
 } from 'lucide-react';
 import { api, ApiError, queryString } from '../../lib/api';
@@ -418,14 +420,25 @@ export function ChatView({ mode }: { mode: 'conversation' | 'channel' }) {
     conversation.type === 'dm'
       ? conversation.otherUser?.displayName || conversation.title || 'Conversa'
       : conversation.type === 'channel'
-        ? `#${channel?.name || conversation.title?.replace(/^#/, '') || 'canal'}`
+        ? channel?.isVoice
+          ? channel.name
+          : `#${channel?.name || conversation.title?.replace(/^#/, '') || 'canal'}`
         : conversation.title || 'Grupo';
   const subtitle =
     conversation.type === 'dm'
       ? lastSeenLabel(conversation.otherUser?.lastSeen || null, conversation.otherUser?.presence || 'offline')
       : conversation.type === 'channel'
-        ? channel?.topic || 'Canal do espaço'
+        ? channel?.isVoice
+          ? 'Canal de voz'
+          : channel?.topic || 'Canal do espaço'
         : `${conversation.memberCount} participantes`;
+  const voiceInHere = Boolean(channel?.isVoice && call.activeCall?.channelId === channel.id);
+  const voiceState = channel?.isVoice
+    ? space?.voiceStates?.find((state) => state.channelId === channel.id)
+    : undefined;
+  const voiceParticipants = voiceInHere
+    ? (call.activeCall?.participants || []).filter((participant) => participant.status === 'joined')
+    : voiceState?.participants || [];
   const activeCallHere = call.activeCall?.conversationId === conversation.id;
   const callBusy = Boolean(call.activeCall) || call.connecting;
 
@@ -445,7 +458,7 @@ export function ChatView({ mode }: { mode: 'conversation' | 'channel' }) {
           <div className="chat-title">
             {conversation.type === 'channel' ? (
               <span className="chat-channel-icon">
-                <Hash size={20} />
+                {channel?.isVoice ? <Volume2 size={20} /> : <Hash size={20} />}
               </span>
             ) : (
               <Avatar
@@ -581,6 +594,64 @@ export function ChatView({ mode }: { mode: 'conversation' | 'channel' }) {
             </div>
           </div>
         </header>
+
+        {channel?.isVoice && (
+          <section className="voice-stage">
+            <div className="voice-stage-info">
+              <span className="voice-stage-icon">
+                <Volume2 size={20} />
+              </span>
+              <div>
+                <strong>
+                  {voiceInHere
+                    ? 'Conectado ao canal de voz'
+                    : voiceParticipants.length > 0
+                      ? `${voiceParticipants.length} ${
+                          voiceParticipants.length === 1 ? 'pessoa' : 'pessoas'
+                        } no canal`
+                      : 'Canal de voz vazio'}
+                </strong>
+                <p>
+                  {voiceInHere
+                    ? 'Use o painel flutuante para microfone, tela e sair.'
+                    : 'Entre para conversar por áudio.'}
+                </p>
+              </div>
+            </div>
+            {voiceParticipants.length > 0 && (
+              <div className="voice-stage-members">
+                {voiceParticipants.map((participant) => (
+                  <div className="voice-stage-member" key={participant.userId}>
+                    <Avatar
+                      name={participant.displayName}
+                      src={participant.avatarUrl}
+                      size={30}
+                      presence={participant.presence}
+                    />
+                    <span>{participant.displayName}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="voice-stage-actions">
+              {voiceInHere ? (
+                <button type="button" className="btn btn-danger btn-sm" onClick={call.leaveCall}>
+                  <PhoneOff size={15} /> Desconectar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void call.joinVoice(channel.id)}
+                  disabled={Boolean(call.activeCall) || call.connecting}
+                >
+                  {call.connecting ? <Spinner size={15} /> : <Volume2 size={15} />}
+                  Entrar no canal de voz
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
         {searchOpen && (
           <div className="chat-search">

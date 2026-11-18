@@ -9,6 +9,7 @@ import {
   PhoneOff,
   Video,
   VideoOff,
+  Volume2,
 } from 'lucide-react';
 import { formatDuration } from '../../lib/utils';
 import { useAppStore } from '../../store/app';
@@ -151,11 +152,14 @@ export function CallOverlay() {
 
   if (activeCall) {
     const conversation = conversations.find((item) => item.id === activeCall.conversationId);
-    const title = conversation?.title || conversation?.otherUser?.displayName || 'Chamada';
+    const isVoiceChannel = Boolean(activeCall.channelId);
+    const title = isVoiceChannel
+      ? (conversation?.title || 'Canal de voz').replace(/^#/, '')
+      : conversation?.title || conversation?.otherUser?.displayName || 'Chamada';
     const joined = activeCall.participants.filter((participant) => participant.status === 'joined');
     const remoteParticipants = joined.filter((participant) => participant.userId !== user?.id);
     const invited = activeCall.participants.filter((participant) => participant.status === 'invited');
-    const waiting = remoteParticipants.length === 0 && invited.length > 0;
+    const waiting = !isVoiceChannel && remoteParticipants.length === 0 && invited.length > 0;
     const hasRemoteVideo = remoteParticipants.some((participant) => {
       const state = mediaStates[participant.userId];
       return Boolean(
@@ -170,8 +174,16 @@ export function CallOverlay() {
           <header className="call-header">
             <div>
               <span className="call-kind">
-                {activeCall.kind === 'video' ? <Video size={15} /> : <Phone size={15} />}
-                Chamada de {activeCall.kind === 'video' ? 'vídeo' : 'áudio'}
+                {isVoiceChannel ? (
+                  <Volume2 size={15} />
+                ) : activeCall.kind === 'video' ? (
+                  <Video size={15} />
+                ) : (
+                  <Phone size={15} />
+                )}
+                {isVoiceChannel
+                  ? 'Canal de voz'
+                  : `Chamada de ${activeCall.kind === 'video' ? 'vídeo' : 'áudio'}`}
               </span>
               <h2>{title}</h2>
               <p>

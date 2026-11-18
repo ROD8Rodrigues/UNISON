@@ -26,6 +26,13 @@ function socketCors() {
   };
 }
 
+function voiceSpaceId(db, call) {
+  const channelId = call?.channelId || call?.channel_id;
+  if (!channelId) return null;
+  const row = db.prepare('SELECT space_id FROM channels WHERE id = ?').get(channelId);
+  return row ? row.space_id : null;
+}
+
 function ackError(ack, error) {
   if (typeof ack !== 'function') return;
   const status = error.status || 500;
@@ -238,6 +245,32 @@ function attachRealtime(server, db) {
       }
     });
 
+    socket.on('call:join-voice', (payload, ack) => {
+      try {
+        if (!allow(socket, 'calls', 30)) throw errors.tooMany('Vá com calma');
+        const channelId = payload?.channelId;
+        if (!channelId) throw errors.badRequest('channelId é obrigatório');
+        const { call, participants } = calls.joinVoiceCall(db, channelId, user.id);
+        socket.join(`call:${call.id}`);
+        bus.emitToUsers(
+          participants.map((participant) => participant.userId),
+          'call:participant-joined',
+          {
+            callId: call.id,
+            participant: serializeUser(user),
+            participants,
+            call,
+          },
+          user.id,
+        );
+        const spaceId = voiceSpaceId(db, call);
+        if (spaceId) bus.emitToSpace(db, spaceId, 'space:updated', { spaceId });
+        if (typeof ack === 'function') ack({ call, participants });
+      } catch (error) {
+        ackError(ack, error);
+      }
+    });
+
     socket.on('call:accept', (payload, ack) => {
       try {
         if (!allow(socket, 'calls', 30)) throw errors.tooMany('Vá com calma');
@@ -303,6 +336,8 @@ function attachRealtime(server, db) {
             { callId: call.id, userId: user.id, call: updated },
           );
         }
+        const spaceId = voiceSpaceId(db, call);
+        if (spaceId) bus.emitToSpace(db, spaceId, 'space:updated', { spaceId });
         if (typeof ack === 'function') ack({ call: updated });
       } catch (error) {
         ackError(ack, error);
@@ -320,6 +355,8 @@ function attachRealtime(server, db) {
         const updated = calls.endCallForAll(db, call.id, 'ended');
         clearCallTimer(call.id);
         socket.leave(`call:${call.id}`);
+        const spaceId = voiceSpaceId(db, call);
+        if (spaceId) bus.emitToSpace(db, spaceId, 'space:updated', { spaceId });
         if (typeof ack === 'function') ack({ call: updated });
       } catch (error) {
         ackError(ack, error);
@@ -412,8 +449,11 @@ function attachRealtime(server, db) {
           .all(user.id);
         for (const row of active) {
           try {
+            const call = calls.getCall(db, row.call_id);
             const updated = calls.endCall(db, row.call_id, user.id);
             if (updated?.status === 'ended' || updated?.status === 'declined') clearCallTimer(row.call_id);
+            const spaceId = voiceSpaceId(db, call);
+            if (spaceId) bus.emitToSpace(db, spaceId, 'space:updated', { spaceId });
           } catch {
             // Calls are best-effort on disconnect.
           }

@@ -214,7 +214,7 @@ curl -fsS https://app.exemplo.com/health
 Resposta esperada:
 
 ```json
-{"status":"ok","service":"unison-server","version":"1.0.0","database":"ok","timestamp":"..."}
+{"status":"ok","service":"unison-server","version":"1.1.0","database":"ok","timestamp":"..."}
 ```
 
 Monitore:

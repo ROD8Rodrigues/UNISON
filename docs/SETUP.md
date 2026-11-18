@@ -231,8 +231,8 @@ cmd /c "npm run dist"
 
 Saídas em `desktop\release\`:
 
-- `UNISON-Setup-1.0.1.exe` — instalador NSIS por usuário;
-- `UNISON-Portable-1.0.1.exe` — executável portátil;
+- `UNISON-Setup-1.1.0.exe` — instalador NSIS por usuário;
+- `UNISON-Portable-1.1.0.exe` — executável portátil;
 - `win-unpacked\` — build para teste;
 - `SHA256SUMS.txt` — checksums.
 

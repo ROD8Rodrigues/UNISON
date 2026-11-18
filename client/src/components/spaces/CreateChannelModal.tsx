@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Hash, Lock, Plus } from 'lucide-react';
+import { Hash, Lock, Plus, Volume2 } from 'lucide-react';
 import { api, ApiError } from '../../lib/api';
 import type { Channel } from '../../lib/types';
 import { toast } from '../../store/toast';
@@ -18,6 +18,7 @@ export function CreateChannelModal({
   onCreated: (channel: Channel) => void;
 }) {
   const [name, setName] = useState('');
+  const [channelType, setChannelType] = useState<'text' | 'voice'>('text');
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState('Geral');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -27,6 +28,7 @@ export function CreateChannelModal({
   useEffect(() => {
     if (!open) return;
     setName('');
+    setChannelType('text');
     setTopic('');
     setCategory('Geral');
     setIsPrivate(false);
@@ -53,8 +55,12 @@ export function CreateChannelModal({
         topic: topic.trim(),
         category: category.trim() || 'Geral',
         isPrivate,
+        type: channelType,
       });
-      toast.success('Canal criado', `#${data.channel.name}`);
+      toast.success(
+        channelType === 'voice' ? 'Canal de voz criado' : 'Canal criado',
+        channelType === 'voice' ? data.channel.name : `#${data.channel.name}`,
+      );
       onCreated(data.channel);
       onClose();
     } catch (requestError) {
@@ -73,7 +79,11 @@ export function CreateChannelModal({
       open={open}
       onClose={onClose}
       title="Criar canal"
-      description="Canais organizam as conversas do espaço por assunto."
+      description={
+        channelType === 'voice'
+          ? 'Canais de voz permitem conversar por áudio sem iniciar uma chamada.'
+          : 'Canais organizam as conversas do espaço por assunto.'
+      }
       size="md"
       footer={
         <>
@@ -88,17 +98,36 @@ export function CreateChannelModal({
       }
     >
       <div className="form-stack">
+        <div className="field">
+          <span>Tipo do canal</span>
+          <div className="segmented">
+            <button
+              type="button"
+              className={channelType === 'text' ? 'active' : ''}
+              onClick={() => setChannelType('text')}
+            >
+              <Hash size={15} /> Texto
+            </button>
+            <button
+              type="button"
+              className={channelType === 'voice' ? 'active' : ''}
+              onClick={() => setChannelType('voice')}
+            >
+              <Volume2 size={15} /> Voz
+            </button>
+          </div>
+        </div>
         <label className="field">
           <span>Nome do canal</span>
           <div className={`input-shell${error ? ' invalid' : ''}`}>
-            <Hash size={16} />
+            {channelType === 'voice' ? <Volume2 size={16} /> : <Hash size={16} />}
             <input
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
                 setError('');
               }}
-              placeholder="ex.: anúncios"
+              placeholder={channelType === 'voice' ? 'ex.: sala-de-jogos' : 'ex.: anúncios'}
               maxLength={32}
               autoFocus
             />

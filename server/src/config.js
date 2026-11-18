@@ -59,7 +59,7 @@ const config = {
     ? process.env.COOKIE_SECURE === 'true'
     : isProduction,
   cookieName: 'unison_refresh',
-  version: '1.0.0',
+  version: require('../package.json').version,
 };
 
 if (isProduction && config.corsOrigins.includes('*')) {

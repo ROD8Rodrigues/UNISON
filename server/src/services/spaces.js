@@ -283,6 +283,8 @@ function serializeChannel(row, conversationId, unreadCount = 0) {
     name: row.name,
     topic: row.topic,
     category: row.category,
+    type: row.is_voice ? 'voice' : 'text',
+    isVoice: Boolean(row.is_voice),
     position: row.position,
     isPrivate: Boolean(row.is_private),
     conversationId: conversationId || row.conversation_id || null,
@@ -299,14 +301,15 @@ function createChannel(db, context, input) {
       .prepare('SELECT COALESCE(MAX(position), -1) AS max FROM channels WHERE space_id = ?')
       .get(context.space.id).max;
     db.prepare(
-      `INSERT INTO channels (id, space_id, name, topic, category, type, position, is_private, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'text', ?, ?, ?, ?)`,
+      `INSERT INTO channels (id, space_id, name, topic, category, type, is_voice, position, is_private, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'text', ?, ?, ?, ?, ?)`,
     ).run(
       channelId,
       context.space.id,
       input.name,
       input.topic || '',
       input.category || 'General',
+      input.type === 'voice' ? 1 : 0,
       maxPosition + 1,
       input.isPrivate ? 1 : 0,
       timestamp,

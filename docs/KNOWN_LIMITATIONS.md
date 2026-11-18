@@ -13,6 +13,7 @@ Este documento separa o que foi validado do que depende de ambiente externo. A c
 - O padrão usa STUN público do Google. Sem TURN, chamadas podem falhar em NAT simétrico, redes corporativas e algumas operadoras móveis.
 - TURN é configurável no build com credenciais estáticas. Credenciais temporárias (`use-auth-secret`) não estão implementadas.
 - `restartIce` e reconexão de socket estão implementados, mas não foram testados em cenários reais de troca de rede.
+- **Canais de voz (1.1.0):** entrada, saída e presença são cobertas por teste automatizado de Socket.IO e API. A chamada do canal usa a mesma topologia **mesh** das demais chamadas, então o limite de 9 participantes e a dependência de STUN/TURN se aplicam. A entrada em um canal com duas contas reais, em navegadores/dispositivos distintos, ainda não foi executada neste ambiente.
 
 **Para validar:** dois dispositivos reais, redes distintas, HTTPS, permissões de mídia, TURN configurado, teste de áudio, vídeo, tela, mute, entrada/saída, queda de rede e reconexão.
 
@@ -122,7 +123,7 @@ Consulte [SECURITY.md](SECURITY.md).
 
 **Status: bom para o escopo, não exaustivo.**
 
-- 16 testes de backend e 13 de frontend passam.
+- 17 testes de backend e 13 de frontend passam.
 - O desktop tem smoke test real no build empacotado, portátil e instalado, mas não há suíte E2E de UI, testes de upgrade ou automação de assinatura.
 - Não há testes E2E em navegador, testes de contrato, mutation testing ou testes de acessibilidade formais.
 - Não há testes em múltiplos navegadores/SOs, dispositivos móveis reais ou leitores de tela.
@@ -143,7 +144,7 @@ Consulte [SECURITY.md](SECURITY.md).
 - Não há migrations com rollback automático.
 - Não há suporte oficial a Windows Server/IIS além das orientações gerais.
 - Não há auto-update, assinatura de código, instalador MSI ou deployment corporativo (Intune/SCCM) pronto.
-- O deploy gratuito está ativo na conta alwaysdata Free `telawork`: single-node, 1 GB de disco, 256 MB de RAM, sem domínio próprio e restrito a uso pessoal/não comercial. O `Force HTTPS` do painel ainda não foi ativado; use sempre `https://telawork.alwaysdata.net`.
+- O deploy gratuito está ativo na conta alwaysdata Free `telawork`: single-node, 1 GB de disco, 256 MB de RAM, sem domínio próprio e restrito a uso pessoal/não comercial. Em 18/11/2026 o frontend e os arquivos do servidor **1.1.0** foram publicados; como o restart do site Node.js depende do painel, `/health` ainda responde `1.0.0` até a reinicialização. O `Force HTTPS` do painel ainda não foi ativado; use sempre `https://telawork.alwaysdata.net`.
 - O download via GitHub Releases exige conta GitHub e repositório público para acesso anônimo; o instalador continua sem assinatura digital e sujeito ao aviso do SmartScreen.
 - Não há migração automática do banco local do desktop (modo standalone) para o servidor remoto; o modo remoto começa com os dados do servidor.
 
@@ -165,13 +166,13 @@ Consulte [SECURITY.md](SECURITY.md).
 
 ## O que foi validado de fato
 
-- Backend: lint, 16 testes automatizados, auditoria de dependências, inicialização e smoke test em `NODE_ENV=production`.
+- Backend: lint, 17 testes automatizados, auditoria de dependências, inicialização e smoke test em `NODE_ENV=production`.
 - Frontend: lint, typecheck, 13 testes, build de produção, assets PWA servidos com headers corretos.
 - Fluxos HTTP: registro, login, refresh com cookie seguro, `/me`, 404 JSON, SPA fallback, manifest e service worker.
 - Banco: migrations aplicadas em banco vazio em memória e em arquivo temporário.
 - Segurança: headers, CORS, autorização, validação, uploads, revogação de sessão e isolamento de salas cobertos por testes.
-- Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado. No build 1.0.1, o smoke do `win-unpacked` e do portátil também confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio loopback (`System audio`).
+- Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado. No build 1.1.0, o smoke do `win-unpacked` e do portátil também confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio loopback (`System audio`).
 - Desktop, controles observados: backend em `127.0.0.1`, `contextIsolation`/`sandbox`, cookie de refresh `HttpOnly`/`SameSite=Lax`/`Path=/api/auth`, `Secure=false` apenas em loopback e `serverUrl` remoto restrito a HTTPS.
-- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Em 18/11/2026 o bundle 1.0.1 com as correções de chamada foi publicado e servido pela alwaysdata (`/health` e assets com HTTP 200). A captura de tela com áudio loopback foi confirmada no Electron, mas a transmissão de áudio de tela entre duas máquinas ainda não foi testada.
+- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Em 18/11/2026 o bundle e os arquivos do servidor 1.1.0 (canais de voz, convite personalizado e toggles) foram publicados e o frontend novo é servido pela alwaysdata. O backend novo depende do restart do site no painel; canais de voz com duas contas reais ainda não foram testados em produção.
 
 Tudo além disso deve ser tratado como **não validado** até execução em ambiente real.

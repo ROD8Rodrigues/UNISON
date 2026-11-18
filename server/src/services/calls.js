@@ -4,6 +4,7 @@ const { id, now, transaction, iso } = require('../utils/helpers');
 const { errors } = require('../utils/errors');
 const { assertAccess, listMembers } = require('./conversations');
 const { createSystemMessage } = require('./messages');
+const { permissionsForMember } = require('./spaces');
 const { emitToUsers } = require('../realtime/bus');
 
 function getCall(db, callId) {
@@ -35,6 +36,7 @@ function serializeCall(db, row) {
   return {
     id: row.id,
     conversationId: row.conversation_id,
+    channelId: row.channel_id || null,
     initiatorId: row.initiator_id,
     kind: row.kind,
     status: row.status,
@@ -84,6 +86,99 @@ function startCall(db, conversationId, initiatorId, kind) {
   return serializeCall(db, getCall(db, callId));
 }
 
+function joinVoiceCall(db, channelId, userId) {
+  const channel = db
+    .prepare('SELECT * FROM channels WHERE id = ? AND is_voice = 1')
+    .get(channelId);
+  if (!channel) throw errors.notFound('Canal de voz não encontrado', 'VOICE_CHANNEL_NOT_FOUND');
+
+  const inSpace = db
+    .prepare('SELECT 1 AS ok FROM space_members WHERE space_id = ? AND user_id = ?')
+    .get(channel.space_id, userId);
+  if (!inSpace) throw errors.forbidden('Você não é membro deste espaço', 'NOT_A_MEMBER');
+
+  const conversation = db.prepare('SELECT * FROM conversations WHERE channel_id = ?').get(channel.id);
+  if (!conversation) throw errors.notFound('Canal de voz sem conversa associada', 'CHANNEL_NOT_READY');
+
+  const membership = db
+    .prepare('SELECT 1 AS ok FROM conversation_members WHERE conversation_id = ? AND user_id = ?')
+    .get(conversation.id, userId);
+  if (!membership && !permissionsForMember(db, channel.space_id, userId).has('manage_channels')) {
+    throw errors.forbidden('Você não tem acesso a este canal de voz', 'PRIVATE_CHANNEL');
+  }
+
+  const elsewhere = db
+    .prepare(
+      `SELECT c.id FROM call_participants cp JOIN calls c ON c.id = cp.call_id
+       WHERE cp.user_id = ? AND cp.status = 'joined' AND c.status IN ('ringing', 'active')
+         AND c.conversation_id <> ? LIMIT 1`,
+    )
+    .get(userId, conversation.id);
+  if (elsewhere) {
+    throw errors.conflict('Você já está em outra chamada', 'ALREADY_IN_CALL');
+  }
+
+  const timestamp = now();
+  let call = db
+    .prepare(
+      `SELECT * FROM calls WHERE conversation_id = ? AND channel_id = ? AND status = 'active'
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .get(conversation.id, channel.id);
+
+  if (call) {
+    const alreadyJoined = db
+      .prepare("SELECT 1 AS ok FROM call_participants WHERE call_id = ? AND user_id = ? AND status = 'joined'")
+      .get(call.id, userId);
+    const joinedCount = db
+      .prepare("SELECT COUNT(*) AS count FROM call_participants WHERE call_id = ? AND status = 'joined'")
+      .get(call.id).count;
+    if (!alreadyJoined && joinedCount >= 9) {
+      throw errors.badRequest('Este canal de voz está cheio (9 participantes)', 'VOICE_CHANNEL_FULL');
+    }
+  }
+
+  transaction(db, () => {
+    if (!call) {
+      const callId = id();
+      db.prepare(
+        `INSERT INTO calls (id, conversation_id, channel_id, initiator_id, kind, status, created_at, started_at)
+         VALUES (?, ?, ?, ?, 'audio', 'active', ?, ?)`,
+      ).run(callId, conversation.id, channel.id, userId, timestamp, timestamp);
+      db.prepare(
+        `INSERT INTO call_participants (call_id, user_id, status, joined_at)
+         VALUES (?, ?, 'joined', ?)`,
+      ).run(callId, userId, timestamp);
+      call = getCall(db, callId);
+      return;
+    }
+    const participant = db
+      .prepare('SELECT * FROM call_participants WHERE call_id = ? AND user_id = ?')
+      .get(call.id, userId);
+    if (participant) {
+      db.prepare(
+        `UPDATE call_participants SET status = 'joined', joined_at = COALESCE(joined_at, ?), left_at = NULL
+         WHERE call_id = ? AND user_id = ?`,
+      ).run(timestamp, call.id, userId);
+    } else {
+      db.prepare(
+        `INSERT INTO call_participants (call_id, user_id, status, joined_at)
+         VALUES (?, ?, 'joined', ?)`,
+      ).run(call.id, userId, timestamp);
+    }
+    db.prepare("UPDATE calls SET status = 'active', started_at = COALESCE(started_at, ?) WHERE id = ?").run(
+      timestamp,
+      call.id,
+    );
+  });
+
+  const updated = serializeCall(db, getCall(db, call.id));
+  return {
+    call: updated,
+    participants: updated.participants.filter((participant) => participant.status === 'joined'),
+  };
+}
+
 function acceptCall(db, callId, userId) {
   const call = getCall(db, callId);
   if (!call) throw errors.notFound('Chamada não encontrada', 'CALL_NOT_FOUND');
@@ -120,10 +215,12 @@ function rejectCall(db, callId, userId) {
   if (remaining === 0) {
     db.prepare("UPDATE calls SET status = 'declined', ended_at = ? WHERE id = ?").run(now(), callId);
     const finished = getCall(db, callId);
-    try {
-      createSystemMessage(db, call.conversation_id, callSummary(serializeCall(db, finished)));
-    } catch {
-      // best-effort
+    if (!call.channel_id) {
+      try {
+        createSystemMessage(db, call.conversation_id, callSummary(serializeCall(db, finished)));
+      } catch {
+        // best-effort
+      }
     }
   }
   return serializeCall(db, getCall(db, callId));
@@ -166,11 +263,13 @@ function endCall(db, callId, userId, reason = 'left') {
     const status = call.started_at ? 'ended' : 'declined';
     db.prepare("UPDATE calls SET status = ?, ended_at = ? WHERE id = ?").run(status, timestamp, callId);
     const finished = getCall(db, callId);
-    const summary = callSummary(serializeCall(db, finished));
-    try {
-      createSystemMessage(db, call.conversation_id, summary);
-    } catch {
-      // System call message is best-effort.
+    if (!call.channel_id) {
+      const summary = callSummary(serializeCall(db, finished));
+      try {
+        createSystemMessage(db, call.conversation_id, summary);
+      } catch {
+        // System call message is best-effort.
+      }
     }
     emitToUsers(
       listMembers(db, call.conversation_id).map((member) => member.user_id),
@@ -193,11 +292,13 @@ function endCallForAll(db, callId, reason = 'ended') {
   ).run(callId);
   db.prepare("UPDATE calls SET status = 'ended', ended_at = ? WHERE id = ?").run(timestamp, callId);
   const finished = getCall(db, callId);
-  const summary = callSummary(serializeCall(db, finished));
-  try {
-    createSystemMessage(db, call.conversation_id, summary);
-  } catch {
-    // best-effort
+  if (!call.channel_id) {
+    const summary = callSummary(serializeCall(db, finished));
+    try {
+      createSystemMessage(db, call.conversation_id, summary);
+    } catch {
+      // best-effort
+    }
   }
   emitToUsers(
     listMembers(db, call.conversation_id).map((member) => member.user_id),
@@ -224,6 +325,7 @@ module.exports = {
   serializeCall,
   activeCallForConversation,
   startCall,
+  joinVoiceCall,
   acceptCall,
   rejectCall,
   missedCall,

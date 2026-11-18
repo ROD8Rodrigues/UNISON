@@ -473,6 +473,46 @@ export function CallProvider({ children }: { children: ReactNode }) {
     [applyCall, broadcastMediaState, cleanup, setupLocalStream],
   );
 
+  const joinVoice = useCallback(
+    async (channelId: string) => {
+      const current = activeRef.current;
+      if (current?.channelId === channelId) return;
+      if (current || incomingRef.current) {
+        toast.info('Você já está em uma chamada');
+        return;
+      }
+      if (connecting) return;
+      setConnecting(true);
+      let acquired: MediaStream | null = null;
+      let callId: string | null = null;
+      try {
+        acquired = await acquireStream('audio');
+        setupLocalStream(acquired);
+        const data = await emitWithAck<{ call: Call; participants: Call['participants'] }>(
+          'call:join-voice',
+          { channelId },
+        );
+        callId = data.call.id;
+        applyCall(data.call);
+        setStartedAt(data.call.startedAt ? new Date(data.call.startedAt).getTime() : Date.now());
+        for (const participant of data.participants || []) {
+          if (participant.userId !== myId && participant.status === 'joined') {
+            ensurePeer(participant.userId, true);
+          }
+        }
+        broadcastMediaState(data.call.id);
+      } catch (error) {
+        acquired?.getTracks().forEach((track) => track.stop());
+        if (callId) getSocket()?.emit('call:leave', { callId });
+        cleanup();
+        toast.error('Não foi possível entrar no canal de voz', errorText(error));
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [applyCall, broadcastMediaState, cleanup, connecting, ensurePeer, myId, setupLocalStream],
+  );
+
   const acceptIncoming = useCallback(async () => {
     const pending = incomingRef.current;
     if (!pending) return;
@@ -830,6 +870,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       connecting,
       durationSeconds,
       startCall,
+      joinVoice,
       acceptIncoming,
       rejectIncoming,
       leaveCall,
@@ -844,6 +885,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       connecting,
       durationSeconds,
       incoming,
+      joinVoice,
       leaveCall,
       localStream,
       mediaStates,

@@ -193,6 +193,69 @@ test('call signaling reaches participants and ends in order', async () => {
   assert.equal(ended.callId, started.call.id);
 });
 
+test('voice channels expose presence and support direct join/leave', async () => {
+  const created = await ctx.request('/api/spaces', {
+    method: 'POST',
+    token: alex.token,
+    body: { name: 'Voz Teste', visibility: 'public' },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const spaceId = created.body.space.id;
+  const joinedSpace = await ctx.request(`/api/spaces/${spaceId}/join`, {
+    method: 'POST',
+    token: blair.token,
+  });
+  assert.equal(joinedSpace.status, 200);
+
+  const voice = await ctx.request(`/api/spaces/${spaceId}/channels`, {
+    method: 'POST',
+    token: alex.token,
+    body: { name: 'sala-de-voz', type: 'voice' },
+  });
+  assert.equal(voice.status, 201, JSON.stringify(voice.body));
+  const channel = voice.body.channel;
+  assert.equal(channel.isVoice, true);
+  assert.equal(channel.type, 'voice');
+
+  const alexSocket = await connect(alex.token);
+  const blairSocket = await connect(blair.token);
+
+  const firstUpdate = waitForEvent(alexSocket, 'space:updated');
+  const first = await emitAck(alexSocket, 'call:join-voice', { channelId: channel.id });
+  assert.equal(first.call.channelId, channel.id);
+  assert.equal(first.call.status, 'active');
+  assert.equal(first.participants.length, 1);
+  await firstUpdate;
+
+  const details = await ctx.request(`/api/spaces/${spaceId}`, { token: blair.token });
+  assert.equal(details.status, 200);
+  const state = (details.body.voiceStates || []).find((item) => item.channelId === channel.id);
+  assert.ok(state);
+  assert.equal(state.participants[0].userId, alex.user.id);
+
+  const joinedEvent = waitForEvent(alexSocket, 'call:participant-joined');
+  const second = await emitAck(blairSocket, 'call:join-voice', { channelId: channel.id });
+  assert.equal(second.call.id, first.call.id);
+  assert.equal(second.participants.length, 2);
+  const joined = await joinedEvent;
+  assert.equal(joined.callId, first.call.id);
+  assert.ok(joined.participants.some((participant) => participant.userId === blair.user.id));
+
+  const leftEvent = waitForEvent(alexSocket, 'call:participant-left');
+  await emitAck(blairSocket, 'call:leave', { callId: first.call.id });
+  const left = await leftEvent;
+  assert.equal(left.userId, blair.user.id);
+
+  const endedEvent = waitForEvent(alexSocket, 'call:ended');
+  await emitAck(alexSocket, 'call:leave', { callId: first.call.id });
+  const ended = await endedEvent;
+  assert.equal(ended.callId, first.call.id);
+
+  const afterDetails = await ctx.request(`/api/spaces/${spaceId}`, { token: alex.token });
+  const afterState = (afterDetails.body.voiceStates || []).find((item) => item.channelId === channel.id);
+  assert.equal(afterState, undefined);
+});
+
 test('logout revokes the active socket and blocks token reuse', async () => {
   const socket = await connect(cody.token);
   const revokedPromise = waitForEvent(socket, 'session:revoked');

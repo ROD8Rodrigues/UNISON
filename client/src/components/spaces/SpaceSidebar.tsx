@@ -9,9 +9,11 @@ import {
   Settings2,
   Ticket,
   Users,
+  Volume2,
 } from 'lucide-react';
 import type { Channel, Permission, SpaceDetails } from '../../lib/types';
 import { classNames } from '../../lib/utils';
+import { useCall } from '../calls/call-context';
 import { Avatar } from '../ui/Avatar';
 
 interface SpaceSidebarProps {
@@ -41,7 +43,9 @@ export function SpaceSidebar({
   onOpenInvites,
   onLeave,
 }: SpaceSidebarProps) {
+  const call = useCall();
   const { space } = details;
+  const voiceStates = new Map((details.voiceStates || []).map((state) => [state.channelId, state]));
   const permissions = new Set<Permission>(details.myMember.permissions);
   const canManageChannels = permissions.has('manage_channels');
   const canCreateInvites = permissions.has('create_invites');
@@ -129,27 +133,58 @@ export function SpaceSidebar({
         {groups.map(([category, channels]) => (
           <div className="space-channel-group" key={category}>
             <span className="space-channel-category">{category}</span>
-            {channels.map((channel) => (
-              <NavLink
-                key={channel.id}
-                to={`/app/spaces/${space.id}/channels/${channel.id}`}
-                className={({ isActive }) =>
-                  classNames(
-                    'space-channel-link',
-                    (isActive || activeChannelId === channel.id) && 'active',
-                    channel.unreadCount > 0 && 'unread',
-                  )
-                }
-              >
-                {channel.isPrivate ? <Lock size={15} /> : <Hash size={15} />}
-                <span>{channel.name}</span>
-                {channel.unreadCount > 0 && (
-                  <span className="space-channel-badge">
-                    {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
-                  </span>
-                )}
-              </NavLink>
-            ))}
+            {channels.map((channel) => {
+              const voiceState = channel.isVoice ? voiceStates.get(channel.id) : undefined;
+              const connected = Boolean(channel.isVoice && call.activeCall?.channelId === channel.id);
+              return (
+                <div className="space-voice-entry" key={channel.id}>
+                  <NavLink
+                    to={`/app/spaces/${space.id}/channels/${channel.id}`}
+                    onClick={() => {
+                      if (channel.isVoice) void call.joinVoice(channel.id);
+                    }}
+                    className={({ isActive }) =>
+                      classNames(
+                        'space-channel-link',
+                        (isActive || activeChannelId === channel.id) && 'active',
+                        channel.unreadCount > 0 && 'unread',
+                        connected && 'connected',
+                      )
+                    }
+                  >
+                    {channel.isPrivate ? (
+                      <Lock size={15} />
+                    ) : channel.isVoice ? (
+                      <Volume2 size={15} />
+                    ) : (
+                      <Hash size={15} />
+                    )}
+                    <span>{channel.name}</span>
+                    {connected && <span className="space-voice-live" aria-label="Conectado" />}
+                    {!channel.isVoice && channel.unreadCount > 0 && (
+                      <span className="space-channel-badge">
+                        {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
+                      </span>
+                    )}
+                  </NavLink>
+                  {voiceState && voiceState.participants.length > 0 && (
+                    <div className="space-voice-members">
+                      {voiceState.participants.map((participant) => (
+                        <div className="space-voice-member" key={participant.userId}>
+                          <Avatar
+                            name={participant.displayName}
+                            src={participant.avatarUrl}
+                            size={17}
+                            presence={participant.presence}
+                          />
+                          <span>{participant.displayName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ))}
 

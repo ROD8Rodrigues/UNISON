@@ -46,7 +46,7 @@ Na raiz do projeto:
 ```powershell
 cd C:\Users\Chris\Telawork
 
-# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.0.1.zip
+# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.1.0.zip
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-alwaysdata.ps1
 ```
 
@@ -56,9 +56,9 @@ O script:
 - copia `server/` (sem `node_modules`, `data`, `uploads`, `.env`, testes e legado);
 - copia `client/dist/`;
 - cria `DEPLOY.txt` com o resumo;
-- gera `deploy/UNISON-alwaysdata-1.0.1.zip` e mostra o SHA-256.
+- gera `deploy/UNISON-alwaysdata-1.1.0.zip` e mostra o SHA-256.
 
-Build atual do pacote: **0,96 MiB (1.009.881 bytes)**, SHA-256 `04704d4a463c1e8f8fc7dc0a819fd1a42b1b5abf8bb1d3d14b6059fd207cf47e` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.0.1.zip.sha256`).
+Build atual do pacote: **0,97 MiB (1.019.282 bytes)**, SHA-256 `61a96f7ef354910c6e9b41197176eaf1a0e560d21e4abf71423e8c358039d9c4` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.1.0.zip.sha256`).
 
 O zip deve conter, na raiz:
 
@@ -94,7 +94,7 @@ No PowerShell, na raiz do projeto:
 ssh <usuario-ssh>@ssh-<conta>.alwaysdata.net
 
 # envie o zip
-scp .\deploy\UNISON-alwaysdata-1.0.1.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
+scp .\deploy\UNISON-alwaysdata-1.1.0.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
 ```
 
 Se preferir interface gráfica, use WinSCP/FileZilla no mesmo host e porta 22, modo SFTP.
@@ -104,14 +104,14 @@ No servidor:
 ```bash
 mkdir -p ~/unison
 cd ~/unison
-unzip ~/UNISON-alwaysdata-1.0.1.zip
+unzip ~/UNISON-alwaysdata-1.1.0.zip
 ls -la
 ```
 
 Se `unzip` não estiver disponível, extraia pelo gerenciador de arquivos da alwaysdata ou use:
 
 ```bash
-python3 -m zipfile -e ~/UNISON-alwaysdata-1.0.1.zip ~/unison
+python3 -m zipfile -e ~/UNISON-alwaysdata-1.1.0.zip ~/unison
 ```
 
 A estrutura final precisa ser:
@@ -417,15 +417,18 @@ O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_E
 
 **Atualização do frontend 1.0.1 (18/11/2026):** o novo `client/dist`, com áudio no compartilhamento de tela e janela de chamada flutuante/minimizável, foi enviado por `tar`/`scp` e trocado atomicamente em `~/unison/client/dist`. O diretório anterior ficou em `~/unison/client/dist.old-20261118202035` para rollback. A raiz passou a servir `assets/index-CdvLNs3a.js` e `assets/index-BINJmH_D.css`; `/health`, o JS novo e o CSS responderam HTTP 200. Nenhum arquivo de `server/data` ou `server/uploads` foi alterado.
 
+**Atualização 1.1.0 (18/11/2026):** o pacote `UNISON-alwaysdata-1.1.0.zip` foi enviado, o backup `~/backups/unison-20261118-204148.tgz` foi criado e `client/dist` e `server/src` foram trocados preservando `.env`, `data/` e `uploads/`. A migration `003_voice_channels.sql` está presente. A raiz serve `assets/index-1x31jT62.js` e `assets/index-VaZnam-b.css` (HTTP 200). O site Node.js **ainda precisa ser reiniciado no painel** para carregar o backend 1.1.0; até lá, `/health` responde `version: 1.0.0` e as rotas de voz/convite personalizado do backend novo ainda não estão ativas.
+
 **Pendências reais:**
 
+- Reiniciar o site Node.js no painel da alwaysdata para ativar o backend 1.1.0 e confirmar `version: 1.1.0` em `/health`.
 - O campo **Working directory** do site está com o caminho duplicado (`/home/telawork/home/telawork/unison/server`). O site está funcionando por um symlink temporário criado em `~/home/telawork/unison/server`. Corrija o campo para `unison/server` e depois remova o symlink.
 - **Force HTTPS** ainda não está ativado: `http://telawork.alwaysdata.net/health` responde `200` em vez de redirecionar. Ative em **Web → Sites → Modificar site → SSL → Force HTTPS**.
-- A sinalização de chamadas foi validada, mas **mídia real** (câmera/microfone, duas máquinas, NAT) ainda não foi testada.
+- A sinalização de chamadas foi validada, mas **mídia real** (câmera/microfone, duas máquinas, NAT) e canais de voz com duas contas ainda não foram testados.
 - SMTP não configurado: emails de verificação/recuperação ficam apenas no log do servidor.
 - Backup externo e teste com duas máquinas ainda pendentes.
 
-O GitHub também está publicado: código em `main` e release [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) com instalador, portátil e checksums. A [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanece disponível como versão anterior.
+O GitHub também está publicado: código em `main` e release [v1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.1.0) com instalador, portátil e checksums. As releases [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) e [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanecem disponíveis para rollback.
 
 ### Chave SSH de deploy
 
@@ -470,7 +473,10 @@ Nunca envie a senha em arquivos, issues ou commits.
 - [x] Mensagem e upload testados.
 - [x] Sinalização de chamada testada (`call:start`, `accept`, `webrtc:signal`, `ended`).
 - [ ] Chamada real com câmera/microfone validada.
-- [x] Captura de tela com áudio loopback confirmada no smoke do desktop 1.0.1.
+- [x] Captura de tela com áudio loopback confirmada no smoke do desktop 1.1.0.
+- [x] Pacote 1.1.0 enviado e `client/dist`/`server/src` atualizados em 18/11/2026.
+- [ ] Site Node.js reiniciado para carregar o backend 1.1.0 (`/health` com `version: 1.1.0`).
+- [ ] Canais de voz e convite personalizado validados em produção com duas contas.
 - [x] `serverUrl` configurado no desktop.
 - [x] Desktop reiniciado e conectado ao servidor remoto.
 - [ ] Duas máquinas conectadas à mesma conta.

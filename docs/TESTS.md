@@ -53,61 +53,58 @@ Para gerar instalador e portátil: `cmd /c "npm run dist"`. O smoke test também
 
 ## Resultado da última execução
 
-Data: **16/11/2026** (horário local).
+Data: **18/11/2026** (horário local).
 
 | Verificação | Resultado |
 | --- | --- |
 | Backend — lint | ✅ sem erros |
-| Backend — testes | ✅ 16/16 |
+| Backend — testes | ✅ 17/17 |
 | Frontend — lint | ✅ sem erros |
 | Frontend — typecheck | ✅ sem erros |
 | Frontend — testes | ✅ 13/13 |
 | Frontend — build | ✅ concluído |
 | Desktop — checagem sintática | ✅ sem erros |
-| Desktop — smoke empacotado, portátil e instalado | ✅ |
-| Desktop — modo remoto | ✅ |
+| Desktop — smoke 1.1.0 empacotado e portátil | ✅ |
+| Desktop — modo remoto | ✅ (contra backend local) |
 | `npm audit --omit=dev` server | ✅ 0 vulnerabilidades |
 | `npm audit` client | ⚠️ 12 alertas dev-only de `picomatch` (CVE-2026-112366, sem patch publicado) |
 | `npm audit` desktop | ⚠️ 9 alertas dev-only de `picomatch` (CVE-2026-112366, sem patch publicado) |
 
-Build de produção observado:
+Build de produção observado em 1.1.0:
 
-- JS: ~554 kB (156 kB gzip)
-- CSS: ~121 kB (21 kB gzip)
+- JS: ~561 kB (158 kB gzip)
+- CSS: ~126 kB (22 kB gzip)
 - Aviso não fatal do Vite sobre chunk > 500 kB
 
-## Validação do pacote alwaysdata (17/11/2026)
+## Validação do pacote alwaysdata (18/11/2026)
 
-O pacote de deploy gratuito foi gerado e testado localmente. A conta alwaysdata `telawork`, o usuário SSH e o host já foram criados, mas o upload e a configuração do site Node.js ainda não foram executados.
+O pacote **1.1.0** foi gerado, testado localmente e publicado na conta `telawork`. O novo `client/dist` já está no ar; os arquivos do servidor foram trocados e a migration `003_voice_channels.sql` está presente. O processo Node.js do site ainda precisa ser reiniciado no painel para carregar o backend 1.1.0 — até lá, `/health` responde `1.0.0`.
 
 ```powershell
-# gera deploy/UNISON-alwaysdata-1.0.1.zip
+# gera deploy/UNISON-alwaysdata-1.1.0.zip
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-alwaysdata.ps1
 
 # extrai o zip, sobe o servidor em NODE_ENV=production e testa os fluxos
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-alwaysdata.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-alwaysdata.ps1 -ZipPath .\deploy\UNISON-alwaysdata-1.1.0.zip
 ```
 
 | Verificação | Resultado |
 | --- | --- |
-| Backend — testes (repetição) | ✅ 16/16 |
-| Frontend — testes (repetição) | ✅ 13/13 |
-| Backend — lint | ✅ sem erros |
-| Frontend — lint | ✅ sem erros |
-| Frontend — typecheck | ✅ sem erros |
-| Frontend — build | ✅ concluído |
-| Pacote `server/ + client/dist/` | ✅ 0,96 MiB |
+| Backend — testes | ✅ 17/17 |
+| Frontend — testes | ✅ 13/13 |
+| Pacote `server/ + client/dist/` | ✅ 0,97 MiB (1.019.282 bytes) |
+| SHA-256 do zip | `61a96f7ef354910c6e9b41197176eaf1a0e560d21e4abf71423e8c358039d9c4` |
 | Layout de produção (`NODE_ENV=production`) | ✅ |
 | `/health` com SQLite | ✅ `status: ok` |
-| SPA e service worker | ✅ |
+| SPA, service worker e assets 1.1.0 | ✅ HTTP 200 |
 | Registro, login, refresh e `/me` | ✅ |
 | Cookie `Secure`/`HttpOnly`/`SameSite=Lax` | ✅ verificado com `COOKIE_SECURE=true` |
-| Criação de `data/` e `uploads/` | ✅ |
-| Migration 002 de rebrand | ✅ `#C5F812` convertido para `#C9A0DC` em accent e papéis |
+| Migration 003 de canais de voz | ✅ presente e aplicada na inicialização |
+| Backup remoto antes do deploy | ✅ `~/backups/unison-20261118-204148.tgz` |
 
 O smoke test usa um banco temporário e não toca em `server/data` nem em `server/uploads`. A conta real da alwaysdata já existe, mas a validação em produção (upload, site Node.js, Let's Encrypt e `https://telawork.alwaysdata.net`) ainda não foi executada neste ambiente; o site Apache padrão continua ativo.
 
-## Cobertura do backend (16 testes)
+## Cobertura do backend (17 testes)
 
 ### API (`server/test/api.test.js` — 13 testes)
 
@@ -122,14 +119,15 @@ O smoke test usa um banco temporário e não toca em `server/data` nem em `serve
 9. Reset de senha usa token de uso único e revoga sessões.
 10. Pedidos de amizade podem ser aceitos e geram notificações.
 11. DMs suportam edição, reações, fixação, busca e recibos de leitura.
-12. Spaces aplicam papéis, canais privados, convites e banimentos.
+12. Spaces aplicam papéis, canais privados, convites (inclusive link personalizado), canais de voz e banimentos.
 13. Uploads rejeitam tipos perigosos e neutralizam nomes com traversal.
 
-### Realtime (`server/test/realtime.test.js` — 3 testes)
+### Realtime (`server/test/realtime.test.js` — 4 testes)
 
 1. Mensagem em tempo real, digitação e isolamento de salas.
 2. Sinalização de chamada chega aos participantes e encerra na ordem correta.
-3. Logout revoga o socket ativo e bloqueia reutilização do token.
+3. Canais de voz expõem presença (entrar, segundo participante, sair e encerrar).
+4. Logout revoga o socket ativo e bloqueia reutilização do token.
 
 ## Cobertura do frontend (13 testes)
 
@@ -195,14 +193,14 @@ O smoke do build empacotado validou, dentro do renderer:
 
 O modo local foi validado com banco temporário. O modo remoto foi validado apenas contra backend local em HTTP; não houve teste com DNS/TLS públicos nem entre dois computadores.
 
-Artefatos da versão 1.0.1:
+Artefatos da versão 1.1.0:
 
 | Arquivo | Tamanho | SHA-256 |
 | --- | --- | --- |
-| `UNISON-Setup-1.0.1.exe` | 118.477.793 bytes | `0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286` |
-| `UNISON-Portable-1.0.1.exe` | 105.957.631 bytes | `254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056` |
+| `UNISON-Setup-1.1.0.exe` | 118.480.712 bytes | `ffac10ae75b31da3742b6329280adf5cad4bcdecd587ec4865f1df080fdf5fef` |
+| `UNISON-Portable-1.1.0.exe` | 105.956.579 bytes | `9f43e8e0f596116fa1dbddb2fd6a27b011bc6b0c32294f43c85344967ac5ff4a` |
 
-No smoke do `win-unpacked` e do portátil 1.0.1, além dos itens acima, `getDisplayMedia({ video: true, audio: true })` retornou 1 faixa de vídeo e 1 faixa de áudio com rótulo `System audio` (loopback do Electron).
+No smoke do `win-unpacked` e do portátil 1.1.0, além dos itens acima, `getDisplayMedia({ video: true, audio: true })` retornou 1 faixa de vídeo e 1 faixa de áudio com rótulo `System audio` (loopback do Electron).
 
 Os executáveis estão **`NotSigned`**: assinatura Authenticode, reputação de SmartScreen, upgrade e Windows 11/ARM64 não foram validados.
 

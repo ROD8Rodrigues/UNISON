@@ -984,7 +984,21 @@
 .permission-list {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 5px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.role-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-editor-actions .btn-primary {
+  flex: 1;
 }
 
 .invite-create-card {
@@ -1000,6 +1014,25 @@
 
 .invite-create-card .field {
   flex: 1 1 130px;
+}
+
+.invite-create-card .invite-code-field {
+  flex-basis: 240px;
+}
+
+.invite-prefix {
+  flex: none;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.invite-code-field .input-shell {
+  padding-left: 10px;
+}
+
+.invite-code-field .input-shell input {
+  padding-left: 2px;
 }
 
 .invite-create-card .btn {

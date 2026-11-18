@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -19,6 +19,7 @@ import {
   Trash2,
   UserCog,
   Users,
+  Volume2,
   X,
 } from 'lucide-react';
 import { api, ApiError, resolveMediaUrl } from '../../lib/api';
@@ -164,10 +165,13 @@ export function SpaceSettingsModal({
     permissions: ['send_messages'],
   });
   const [roleError, setRoleError] = useState('');
+  const roleEditorRef = useRef<HTMLDivElement>(null);
+  const roleNameRef = useRef<HTMLInputElement>(null);
 
   const [invites, setInvites] = useState<Invite[]>([]);
   const [inviteExpiry, setInviteExpiry] = useState('0');
   const [inviteMaxUses, setInviteMaxUses] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [loadingInvites, setLoadingInvites] = useState(false);
 
   const [bans, setBans] = useState<BanEntry[]>([]);
@@ -192,6 +196,7 @@ export function SpaceSettingsModal({
     setRoleError('');
     setChannels(details.channels);
     setRoles(details.roles);
+    setInviteCode('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTab, details.space.id]);
 
@@ -471,6 +476,10 @@ export function SpaceSettingsModal({
   function startCreateRole() {
     setRoleDraft({ id: null, name: '', color: '#C9A0DC', permissions: ['send_messages'] });
     setRoleError('');
+    window.requestAnimationFrame(() => {
+      roleEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      roleNameRef.current?.focus();
+    });
   }
 
   function startEditRole(role: Role) {
@@ -543,8 +552,10 @@ export function SpaceSettingsModal({
       await api.post(`/spaces/${details.space.id}/invites`, {
         expiresInHours: hours > 0 ? hours : null,
         maxUses,
+        code: inviteCode.trim() || undefined,
       });
       await loadInvites();
+      setInviteCode('');
       toast.success('Convite criado');
     } catch (error) {
       toast.error('Não foi possível criar o convite', requestMessage(error, 'Tente novamente.'));
@@ -847,12 +858,19 @@ export function SpaceSettingsModal({
                 {channels.map((channel) => (
                   <div className="admin-row" key={channel.id}>
                     <span className="admin-row-icon">
-                      {channel.isPrivate ? <Lock size={16} /> : <Hash size={16} />}
+                      {channel.isPrivate ? (
+                        <Lock size={16} />
+                      ) : channel.isVoice ? (
+                        <Volume2 size={16} />
+                      ) : (
+                        <Hash size={16} />
+                      )}
                     </span>
                     <div className="admin-row-copy">
                       <strong>
-                        #{channel.name}
+                        {channel.isVoice ? channel.name : `#${channel.name}`}
                         {channel.isPrivate && <span className="type-tag">privado</span>}
+                        {channel.isVoice && <span className="type-tag">voz</span>}
                       </strong>
                       <span>
                         {channel.category} · {channel.topic || 'Sem tópico'}
@@ -1139,7 +1157,7 @@ export function SpaceSettingsModal({
                   ))}
                 </div>
 
-                <div className="role-editor">
+                <div className="role-editor" ref={roleEditorRef}>
                   <header>
                     <h4>{roleDraft.id ? 'Editar cargo' : 'Criar cargo'}</h4>
                     {roleDraft.id && (
@@ -1153,8 +1171,12 @@ export function SpaceSettingsModal({
                     <div className={`input-shell${roleError ? ' invalid' : ''}`}>
                       <KeyRound size={15} />
                       <input
+                        ref={roleNameRef}
                         value={roleDraft.name}
-                        onChange={(event) => setRoleDraft((current) => ({ ...current, name: event.target.value }))}
+                        onChange={(event) => {
+                          setRoleDraft((current) => ({ ...current, name: event.target.value }));
+                          setRoleError('');
+                        }}
                         maxLength={32}
                         placeholder="Ex.: Moderador"
                       />
@@ -1182,6 +1204,22 @@ export function SpaceSettingsModal({
                       </div>
                     </div>
                   </label>
+                  <div className="role-editor-actions">
+                    {roleDraft.id && (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={startCreateRole}>
+                        Cancelar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => void saveRole()}
+                      disabled={busy === 'role' || roleDraft.name.trim().length === 0}
+                    >
+                      {busy === 'role' ? <Spinner size={15} /> : <Save size={15} />}
+                      {roleDraft.id ? 'Salvar cargo' : 'Criar cargo'}
+                    </button>
+                  </div>
                   <div className="field">
                     <span>Permissões</span>
                     <div className="permission-list">
@@ -1201,15 +1239,6 @@ export function SpaceSettingsModal({
                     </div>
                   </div>
                   {roleError && <div className="form-error">{roleError}</div>}
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => void saveRole()}
-                    disabled={busy === 'role' || roleDraft.name.trim().length === 0}
-                  >
-                    {busy === 'role' ? <Spinner size={15} /> : <Save size={15} />}
-                    {roleDraft.id ? 'Salvar cargo' : 'Criar cargo'}
-                  </button>
                 </div>
               </div>
             </section>
@@ -1250,6 +1279,30 @@ export function SpaceSettingsModal({
                       placeholder="Ilimitado"
                     />
                   </div>
+                </label>
+                <label className="field invite-code-field">
+                  <span>Link personalizado (opcional)</span>
+                  <div className="input-shell">
+                    <Ticket size={15} />
+                    <span className="invite-prefix">/invite/</span>
+                    <input
+                      value={inviteCode}
+                      onChange={(event) =>
+                        setInviteCode(
+                          event.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, '')
+                            .replace(/^-+/, '')
+                            .slice(0, 32),
+                        )
+                      }
+                      placeholder="meu-time"
+                      maxLength={32}
+                    />
+                  </div>
+                  <small className="field-hint">
+                    Deixe em branco para gerar um código aleatório. Com “Nunca” e sem limite, vira um link permanente.
+                  </small>
                 </label>
                 <button
                   type="button"

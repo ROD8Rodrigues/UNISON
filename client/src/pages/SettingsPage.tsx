@@ -30,6 +30,7 @@ import { confirmDialog } from '../store/dialog';
 import { toast } from '../store/toast';
 import { Avatar } from '../components/ui/Avatar';
 import { Spinner } from '../components/ui/Spinner';
+import { Switch } from '../components/ui/Switch';
 
 type TabId = 'profile' | 'appearance' | 'notifications' | 'privacy' | 'security' | 'sessions' | 'account';
 
@@ -623,13 +624,12 @@ export function SettingsPage() {
                     <strong>Modo compacto</strong>
                     <span>Menos espaçamento entre mensagens e itens.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.compactMode}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, compactMode: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, compactMode: checked }))
                     }
+                    label="Modo compacto"
                   />
                 </label>
                 <label className="toggle-row">
@@ -637,13 +637,12 @@ export function SettingsPage() {
                     <strong>Reduzir movimento</strong>
                     <span>Minimiza animações e transições.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.reduceMotion}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, reduceMotion: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, reduceMotion: checked }))
                     }
+                    label="Reduzir movimento"
                   />
                 </label>
               </div>
@@ -665,11 +664,10 @@ export function SettingsPage() {
                     <strong>Notificações na área de trabalho</strong>
                     <span>Receba avisos no navegador quando o UNISON estiver em segundo plano.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.desktopNotifications}
-                    onChange={(event) => void toggleDesktopNotifications(event.target.checked)}
+                    onChange={(checked) => void toggleDesktopNotifications(checked)}
+                    label="Notificações na área de trabalho"
                   />
                 </label>
                 <label className="toggle-row">
@@ -679,13 +677,12 @@ export function SettingsPage() {
                     </strong>
                     <span>Um sinal sonoro curto ao receber mensagens.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.notificationSounds}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, notificationSounds: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, notificationSounds: checked }))
                     }
+                    label="Sons de mensagem"
                   />
                 </label>
                 <label className="toggle-row">
@@ -693,13 +690,12 @@ export function SettingsPage() {
                     <strong>Prévia do conteúdo</strong>
                     <span>Mostrar o texto da mensagem nas notificações.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.messagePreviews}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, messagePreviews: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, messagePreviews: checked }))
                     }
+                    label="Prévia do conteúdo"
                   />
                 </label>
               </div>
@@ -748,13 +744,12 @@ export function SettingsPage() {
                     <strong>Recibos de leitura</strong>
                     <span>Compartilhar quando você leu as mensagens.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.privacyReadReceipts}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, privacyReadReceipts: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, privacyReadReceipts: checked }))
                     }
+                    label="Recibos de leitura"
                   />
                 </label>
                 <label className="toggle-row">
@@ -762,13 +757,12 @@ export function SettingsPage() {
                     <strong>Indicador de digitação</strong>
                     <span>Mostrar aos outros quando você está digitando.</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
+                  <Switch
                     checked={settings.privacyTyping}
-                    onChange={(event) =>
-                      setSettings((current) => ({ ...current, privacyTyping: event.target.checked }))
+                    onChange={(checked) =>
+                      setSettings((current) => ({ ...current, privacyTyping: checked }))
                     }
+                    label="Indicador de digitação"
                   />
                 </label>
               </div>

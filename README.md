@@ -8,7 +8,7 @@ Este repositório contém a reconstrução de produção do protótipo original:
 
 ## Download
 
-- **Windows x64:** [UNISON 1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.0.1.exe`) e portátil (`UNISON-Portable-1.0.1.exe`), com `SHA256SUMS.txt`.
+- **Windows x64:** [UNISON 1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.1.0.exe`) e portátil (`UNISON-Portable-1.1.0.exe`), com `SHA256SUMS.txt`.
 - **Código-fonte:** [github.com/ROD8Rodrigues/UNISON](https://github.com/ROD8Rodrigues/UNISON).
 - **Web/PWA:** [telawork.alwaysdata.net](https://telawork.alwaysdata.net) — servidor multiusuário online. O Force HTTPS do painel ainda está pendente; use sempre o link `https://`.
 
@@ -19,12 +19,12 @@ Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um 
 - **Backend:** API REST + Socket.IO implementados, com autenticação, sessões, mensagens, comunidades, moderação, uploads, notificações e chamadas.
 - **Frontend:** aplicação React completa, responsiva, com tema escuro/neon, PWA e fluxos reais ligados à API.
 - **Aplicativo Windows:** instalador NSIS e executável portátil x64 com Electron, backend e SQLite embutidos; dados em `%APPDATA%\UNISON`; modo local isolado e modo servidor remoto opcional.
-- **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
-- **Chamadas (1.0.1):** compartilhamento de tela com solicitação de áudio e captura por loopback no Electron; janela da chamada flutuante e minimizável, sem bloquear o chat. O bundle web já está publicado; a validação com áudio real entre dois dispositivos ainda está pendente.
-- **Testes automatizados:** 16 testes de API/realtime no servidor e 13 testes de frontend, todos passando.
+- **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O bundle web e os arquivos do servidor **1.1.0** já foram publicados; o processo Node.js precisa ser reiniciado no painel da alwaysdata para carregar o backend novo (até lá, `/health` responde `1.0.0`). O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
+- **Chamadas e voz (1.1.0):** compartilhamento de tela com áudio e loopback no Electron; janela da chamada flutuante e minimizável; canais de voz permanentes com presença de participantes, entrada sem tocar e o mesmo mesh WebRTC das chamadas. Também entraram o link de convite personalizado, o editor de cargos reorganizado e os toggles de privacidade corrigidos. A validação com áudio real entre dois dispositivos e redes distintas ainda está pendente.
+- **Testes automatizados:** 17 testes de API/realtime no servidor e 13 testes de frontend, todos passando.
 - **Qualidade:** lint e typecheck limpos nos dois projetos; build de produção concluído; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O cliente e o desktop reportam um advisory **dev-only** de `picomatch` (ReDoS, CVE-2026-112366) sem versão corrigida publicada; o pacote não entra no runtime do servidor nem nos `.exe`.
 - **Smoke test de produção:** SPA, service worker, manifest, cache de assets, Cookie de refresh seguro, registro/login e 404 JSON validados.
-- **Smoke test do desktop:** build empacotado, portátil e instalado 1.0.0 validados com interface real, registro, sessão, refresh cookie e captura de tela. No `win-unpacked` 1.0.1, o smoke test confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio (`System audio`, loopback). O modo remoto foi testado contra backend local.
+- **Smoke test do desktop:** build empacotado, portátil e instalado 1.0.0 validados com interface real, registro, sessão, refresh cookie e captura de tela. Em 1.0.1 e 1.1.0, o smoke test do `win-unpacked` e do portátil confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio (`System audio`, loopback). O modo remoto foi testado contra backend local.
 
 O escopo validado neste ambiente, as limitações reais e o que depende de infraestrutura externa estão detalhados em [Limitações conhecidas](docs/KNOWN_LIMITATIONS.md).
 
@@ -48,13 +48,16 @@ O escopo validado neste ambiente, as limitações reais e o que depende de infra
 
 ### Comunidades (Spaces)
 - Criação de espaços públicos ou privados, descoberta e entrada por convite.
-- Canais públicos e privados, categorias, tópicos e ordenação.
+- Canais de texto e de voz, públicos ou privados, com categorias, tópicos e ordenação.
+- Canais de voz com lista de participantes em tempo real e entrada por clique, sem chamada/ring.
 - Funções com permissões granulares, herança e hierarquia.
-- Convites com expiração e limite de uso, banimentos, remoção de membros e auditoria.
+- Convites com expiração, limite de uso, link personalizado (`/invite/meu-link`) e validação de unicidade.
+- Banimentos, remoção de membros e auditoria.
 - Sincronização em tempo real de espaços, canais e permissões.
 
 ### Chamadas
-- Chamadas de áudio e vídeo em DMs e grupos de até 9 participantes.
+- Chamadas de áudio e vídeo em DMs, grupos e canais de voz, até 9 participantes.
+- Canais de voz: entrar/sair sem convite, presença ao vivo na sidebar e no canal.
 - Compartilhamento de tela, mudo, câmera e estado de mídia por participante.
 - Sinalização WebRTC via Socket.IO com STUN público padrão e TURN opcional por variáveis de ambiente.
 - Reconexão de socket e `restartIce` para recuperação de conexão.
@@ -144,18 +147,18 @@ Checklist completo, proxy reverso, TLS, systemd, SMTP, TURN e backup: [Deploy](d
 
 ## Aplicativo Windows (.exe)
 
-Artefatos da versão **1.0.1** em `desktop/release/`:
+Artefatos da versão **1.1.0** em `desktop/release/`:
 
 | Arquivo | Tamanho | Uso |
 | --- | --- | --- |
-| `UNISON-Setup-1.0.1.exe` | 112,99 MiB | Instalador por usuário, com atalhos e desinstalador |
-| `UNISON-Portable-1.0.1.exe` | 101,05 MiB | Executável portátil, sem instalação |
+| `UNISON-Setup-1.1.0.exe` | 112,99 MiB (118.480.712 bytes) | Instalador por usuário, com atalhos e desinstalador |
+| `UNISON-Portable-1.1.0.exe` | 101,05 MiB (105.956.579 bytes) | Executável portátil, sem instalação |
 
 Checksums SHA-256:
 
 ```text
-0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286  UNISON-Setup-1.0.1.exe
-254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056  UNISON-Portable-1.0.1.exe
+ffac10ae75b31da3742b6329280adf5cad4bcdecd587ec4865f1df080fdf5fef  UNISON-Setup-1.1.0.exe
+9f43e8e0f596116fa1dbddb2fd6a27b011bc6b0c32294f43c85344967ac5ff4a  UNISON-Portable-1.1.0.exe
 ```
 
 - **Instalador:** execute e siga o assistente. Instala sem exigir Node.js e cria atalhos na área de trabalho e no menu Iniciar.

@@ -152,7 +152,20 @@ export interface SpaceDetails {
   space: Space;
   channels: Channel[];
   roles: Role[];
+  voiceStates?: VoiceState[];
   myMember: { nickname: string | null; joinedAt: string; permissions: Permission[] };
+}
+
+export interface VoiceState {
+  channelId: string;
+  callId: string;
+  participants: Array<{
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    presence: Presence;
+  }>;
 }
 
 export interface Channel {
@@ -161,6 +174,8 @@ export interface Channel {
   name: string;
   topic: string;
   category: string;
+  type: 'text' | 'voice';
+  isVoice: boolean;
   position: number;
   isPrivate: boolean;
   conversationId: string | null;
@@ -239,6 +254,7 @@ export interface CallParticipant {
 export interface Call {
   id: string;
   conversationId: string;
+  channelId: string | null;
   initiatorId: string;
   kind: 'audio' | 'video';
   status: 'ringing' | 'active' | 'ended' | 'declined';

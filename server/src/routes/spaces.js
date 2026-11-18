@@ -97,6 +97,36 @@ function channelRowsForUser(db, spaceId, userId, canManage) {
   );
 }
 
+function voiceStatesForSpace(db, spaceId) {
+  const rows = db
+    .prepare(
+      `SELECT c.id AS call_id, c.channel_id, cp.user_id, u.username, u.display_name, u.avatar_url, u.presence
+       FROM calls c
+       JOIN channels ch ON ch.id = c.channel_id
+       JOIN call_participants cp ON cp.call_id = c.id
+       JOIN users u ON u.id = cp.user_id
+       WHERE ch.space_id = ? AND c.status = 'active' AND cp.status = 'joined'
+       ORDER BY cp.joined_at ASC`,
+    )
+    .all(spaceId);
+  const states = new Map();
+  for (const row of rows) {
+    let state = states.get(row.channel_id);
+    if (!state) {
+      state = { channelId: row.channel_id, callId: row.call_id, participants: [] };
+      states.set(row.channel_id, state);
+    }
+    state.participants.push({
+      userId: row.user_id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      presence: row.presence,
+    });
+  }
+  return [...states.values()];
+}
+
 function memberRoleMap(db, spaceId) {
   const rows = db
     .prepare(
@@ -234,6 +264,7 @@ function createSpacesRouter(db) {
       }),
       channels,
       roles,
+      voiceStates: voiceStatesForSpace(db, req.params.spaceId),
       myMember: {
         nickname: context.membership.nickname,
         joinedAt: iso(context.membership.joined_at),
@@ -633,7 +664,19 @@ function createSpacesRouter(db) {
     const context = spacesService.getSpaceContext(db, req.params.spaceId, req.user.id);
     spacesService.requirePermission(context, 'create_invites');
     const inviteId = id();
-    const code = spacesService.generateInviteCode();
+    const requestedCode =
+      typeof req.body.code === 'string' ? req.body.code.trim().toLowerCase() : '';
+    let code = requestedCode;
+    if (code) {
+      const taken = db.prepare('SELECT 1 AS ok FROM space_invites WHERE code = ?').get(code);
+      if (taken) {
+        throw errors.conflict('Este link personalizado já está em uso', 'INVITE_CODE_TAKEN');
+      }
+    } else {
+      do {
+        code = spacesService.generateInviteCode();
+      } while (db.prepare('SELECT 1 AS ok FROM space_invites WHERE code = ?').get(code));
+    }
     const createdAt = now();
     const expiresAt = req.body.expiresInHours
       ? createdAt + req.body.expiresInHours * 60 * 60 * 1000

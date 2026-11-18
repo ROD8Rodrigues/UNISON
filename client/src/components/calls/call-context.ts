@@ -29,6 +29,7 @@ export interface CallContextValue {
   connecting: boolean;
   durationSeconds: number;
   startCall: (conversationId: string, kind: 'audio' | 'video') => Promise<void>;
+  joinVoice: (channelId: string) => Promise<void>;
   acceptIncoming: () => Promise<void>;
   rejectIncoming: () => void;
   leaveCall: () => void;

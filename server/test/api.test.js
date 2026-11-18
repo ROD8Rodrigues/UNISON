@@ -545,6 +545,36 @@ test('spaces enforce roles, private channels, invites and bans', async () => {
     body: { maxUses: 1, expiresInHours: 24 },
   });
   assert.equal(invite.status, 201, JSON.stringify(invite.body));
+  const customInvite = await ctx.request(`/api/spaces/${spaceId}/invites`, {
+    method: 'POST',
+    token: alice.token,
+    body: { code: 'time-do-teste' },
+  });
+  assert.equal(customInvite.status, 201, JSON.stringify(customInvite.body));
+  assert.equal(customInvite.body.invite.code, 'time-do-teste');
+  assert.match(customInvite.body.invite.url, /\/invite\/time-do-teste$/);
+  expectError(
+    await ctx.request(`/api/spaces/${spaceId}/invites`, {
+      method: 'POST',
+      token: alice.token,
+      body: { code: 'time-do-teste' },
+    }),
+    409,
+    'INVITE_CODE_TAKEN',
+  );
+
+  const voiceChannel = await ctx.request(`/api/spaces/${spaceId}/channels`, {
+    method: 'POST',
+    token: alice.token,
+    body: { name: 'voz-geral', type: 'voice' },
+  });
+  assert.equal(voiceChannel.status, 201, JSON.stringify(voiceChannel.body));
+  assert.equal(voiceChannel.body.channel.isVoice, true);
+  assert.equal(voiceChannel.body.channel.type, 'voice');
+  const withVoice = await ctx.request(`/api/spaces/${spaceId}`, { token: alice.token });
+  assert.ok(Array.isArray(withVoice.body.voiceStates));
+  assert.ok(withVoice.body.voiceStates.every((state) => state.channelId && Array.isArray(state.participants)));
+
   const inviteInfo = await ctx.request(`/api/invites/${invite.body.invite.code}`, {
     token: carol.token,
   });

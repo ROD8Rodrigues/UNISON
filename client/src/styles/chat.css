@@ -1769,3 +1769,88 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---- Voice channel stage ----------------------------------------------- */
+
+.voice-stage {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: none;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%),
+    var(--surface);
+}
+
+.voice-stage-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.voice-stage-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  color: var(--accent);
+}
+
+.voice-stage-info strong {
+  display: block;
+  color: var(--text-soft);
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.voice-stage-info p {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.voice-stage-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.voice-stage-member {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 0.69rem;
+}
+
+.voice-stage-actions {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .voice-stage {
+    padding: 9px 12px;
+  }
+
+  .voice-stage-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .voice-stage-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

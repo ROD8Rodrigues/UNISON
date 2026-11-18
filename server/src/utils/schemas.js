@@ -121,6 +121,7 @@ const createChannelSchema = z.object({
   topic: z.string().trim().max(200).optional().default(''),
   category: z.string().trim().max(40).optional().default('General'),
   isPrivate: z.boolean().optional().default(false),
+  type: z.enum(['text', 'voice']).optional().default('text'),
 });
 const updateChannelSchema = z.object({
   name: channelName.optional(),
@@ -155,6 +156,13 @@ const updateRoleSchema = createRoleSchema.partial();
 const createInviteSchema = z.object({
   expiresInHours: z.number().int().min(1).max(24 * 30).nullable().optional(),
   maxUses: z.number().int().min(1).max(1000).nullable().optional(),
+  code: z
+    .string()
+    .trim()
+    .min(3)
+    .max(32)
+    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Use letras minúsculas, números e hífens')
+    .optional(),
 });
 const joinInviteSchema = z.object({ code: z.string().trim().min(4).max(64) });
 

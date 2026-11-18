@@ -158,7 +158,14 @@ if (Test-Path $zip) {
 }
 
 Write-Host '==> Compactando'
-Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+$tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+if (-not $tar) {
+  throw 'tar.exe nǜo encontrado. O Windows 10/11 inclui tar.exe; atualize o sistema ou compacte a pasta deploy\alwaysdata manualmente.'
+}
+& $tar.Source -a -c -f $zip -C $stage .
+if ($LASTEXITCODE -ne 0) {
+  throw "tar falhou com exit code $LASTEXITCODE."
+}
 
 $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 $size = (Get-Item -LiteralPath $zip).Length
