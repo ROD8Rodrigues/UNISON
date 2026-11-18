@@ -8,7 +8,7 @@ Este repositório contém a reconstrução de produção do protótipo original:
 
 ## Download
 
-- **Windows x64:** [UNISON 1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.0.0.exe`) e portátil (`UNISON-Portable-1.0.0.exe`), com `SHA256SUMS.txt`.
+- **Windows x64:** [UNISON 1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.0.1.exe`) e portátil (`UNISON-Portable-1.0.1.exe`), com `SHA256SUMS.txt`.
 - **Código-fonte:** [github.com/ROD8Rodrigues/UNISON](https://github.com/ROD8Rodrigues/UNISON).
 - **Web/PWA:** [telawork.alwaysdata.net](https://telawork.alwaysdata.net) — servidor multiusuário online. O Force HTTPS do painel ainda está pendente; use sempre o link `https://`.
 
@@ -20,10 +20,11 @@ Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um 
 - **Frontend:** aplicação React completa, responsiva, com tema escuro/neon, PWA e fluxos reais ligados à API.
 - **Aplicativo Windows:** instalador NSIS e executável portátil x64 com Electron, backend e SQLite embutidos; dados em `%APPDATA%\UNISON`; modo local isolado e modo servidor remoto opcional.
 - **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
+- **Chamadas (1.0.1):** compartilhamento de tela com solicitação de áudio e captura por loopback no Electron; janela da chamada flutuante e minimizável, sem bloquear o chat. O bundle web já está publicado; a validação com áudio real entre dois dispositivos ainda está pendente.
 - **Testes automatizados:** 16 testes de API/realtime no servidor e 13 testes de frontend, todos passando.
 - **Qualidade:** lint e typecheck limpos nos dois projetos; build de produção concluído; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O cliente e o desktop reportam um advisory **dev-only** de `picomatch` (ReDoS, CVE-2026-112366) sem versão corrigida publicada; o pacote não entra no runtime do servidor nem nos `.exe`.
 - **Smoke test de produção:** SPA, service worker, manifest, cache de assets, Cookie de refresh seguro, registro/login e 404 JSON validados.
-- **Smoke test do desktop:** build empacotado, portátil e instalado validados com interface real, registro, sessão, refresh cookie e captura de tela; modo remoto testado contra backend local.
+- **Smoke test do desktop:** build empacotado, portátil e instalado 1.0.0 validados com interface real, registro, sessão, refresh cookie e captura de tela. No `win-unpacked` 1.0.1, o smoke test confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio (`System audio`, loopback). O modo remoto foi testado contra backend local.
 
 O escopo validado neste ambiente, as limitações reais e o que depende de infraestrutura externa estão detalhados em [Limitações conhecidas](docs/KNOWN_LIMITATIONS.md).
 
@@ -143,18 +144,18 @@ Checklist completo, proxy reverso, TLS, systemd, SMTP, TURN e backup: [Deploy](d
 
 ## Aplicativo Windows (.exe)
 
-Artefatos da versão **1.0.0** em `desktop/release/`:
+Artefatos da versão **1.0.1** em `desktop/release/`:
 
 | Arquivo | Tamanho | Uso |
 | --- | --- | --- |
-| `UNISON-Setup-1.0.0.exe` | 112,99 MiB | Instalador por usuário, com atalhos e desinstalador |
-| `UNISON-Portable-1.0.0.exe` | 101,05 MiB | Executável portátil, sem instalação |
+| `UNISON-Setup-1.0.1.exe` | 112,99 MiB | Instalador por usuário, com atalhos e desinstalador |
+| `UNISON-Portable-1.0.1.exe` | 101,05 MiB | Executável portátil, sem instalação |
 
 Checksums SHA-256:
 
 ```text
-5b5e307a8031c50bb7a8045a8e9476e3cc3dedc91a5f4bf141be8dda2e06f6db  UNISON-Setup-1.0.0.exe
-2f9902194efd55990c0c46067955d31b322c89fd0afbae355d5f538b31b2ceca  UNISON-Portable-1.0.0.exe
+0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286  UNISON-Setup-1.0.1.exe
+254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056  UNISON-Portable-1.0.1.exe
 ```
 
 - **Instalador:** execute e siga o assistente. Instala sem exigir Node.js e cria atalhos na área de trabalho e no menu Iniciar.

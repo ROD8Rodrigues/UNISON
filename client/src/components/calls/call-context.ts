@@ -25,6 +25,7 @@ export interface CallContextValue {
   micEnabled: boolean;
   cameraEnabled: boolean;
   screenSharing: boolean;
+  screenAudioEnabled: boolean;
   connecting: boolean;
   durationSeconds: number;
   startCall: (conversationId: string, kind: 'audio' | 'video') => Promise<void>;

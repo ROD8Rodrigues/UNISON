@@ -525,7 +525,7 @@ function configureSession(origin) {
           callback({});
           return;
         }
-        callback({ video: sources[0] });
+        callback({ video: sources[0], audio: 'loopback' });
       } catch (error) {
         log('Screen capture source selection failed', error);
         callback({});
@@ -738,9 +738,48 @@ async function runSmokeTest(win, origin) {
     if (png.length > 1000) {
       fs.writeFileSync(path.join(USER_DATA, 'smoke-screenshot.png'), png);
     }
-    if (IS_SMOKE) win.hide();
   } catch (error) {
     log('Smoke screenshot failed', error);
+  }
+
+  let displayMedia = null;
+  try {
+    if (IS_SMOKE) {
+      win.setOpacity(0);
+      win.showInactive();
+    }
+    displayMedia = await win.webContents.executeJavaScript(
+      `(async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          return { supported: false };
+        }
+        const timeout = new Promise((resolve) =>
+          setTimeout(() => resolve({ supported: true, timeout: true }), 8000),
+        );
+        const capture = navigator.mediaDevices
+          .getDisplayMedia({ video: true, audio: true })
+          .then((stream) => {
+            const result = {
+              supported: true,
+              videoTracks: stream.getVideoTracks().length,
+              audioTracks: stream.getAudioTracks().length,
+              audioLabel: (stream.getAudioTracks()[0] || {}).label || null,
+            };
+            stream.getTracks().forEach((track) => track.stop());
+            return result;
+          })
+          .catch((error) => ({
+            supported: true,
+            error: String(error && error.name ? error.name + ': ' + error.message : error),
+          }));
+        return Promise.race([capture, timeout]);
+      })()`,
+      true,
+    );
+  } catch (error) {
+    displayMedia = { error: String(error) };
+  } finally {
+    if (IS_SMOKE) win.hide();
   }
 
   if (!embedded) {
@@ -749,6 +788,7 @@ async function runSmokeTest(win, origin) {
       mode: 'remote',
       ui,
       screenshotBytes,
+      displayMedia,
       health: await checkRemoteHealth(origin),
     };
   }
@@ -839,6 +879,7 @@ async function runSmokeTest(win, origin) {
     mode: 'embedded',
     ui,
     screenshotBytes,
+    displayMedia,
     api: {
       registerStatus: registration.status,
       meStatus: me.status,

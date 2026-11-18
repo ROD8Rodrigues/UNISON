@@ -78,6 +78,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
+  const [screenAudioEnabled, setScreenAudioEnabled] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
@@ -90,6 +91,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const audioTrackRef = useRef<MediaStreamTrack | null>(null);
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenAudioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenAudioSendersRef = useRef(new Map<string, RTCRtpSender>());
   const micRef = useRef(true);
   const cameraRef = useRef(false);
   const screenRef = useRef(false);
@@ -132,11 +135,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
     peersRef.current.clear();
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     screenTrackRef.current?.stop();
+    screenAudioTrackRef.current?.stop();
+    screenAudioSendersRef.current.clear();
     localStreamRef.current = null;
     outboundRef.current = null;
     audioTrackRef.current = null;
     cameraTrackRef.current = null;
     screenTrackRef.current = null;
+    screenAudioTrackRef.current = null;
     activeRef.current = null;
     incomingRef.current = null;
     micRef.current = true;
@@ -151,6 +157,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setMicEnabled(true);
     setCameraEnabled(false);
     setScreenSharing(false);
+    setScreenAudioEnabled(false);
     setConnecting(false);
     setStartedAt(null);
     setDurationSeconds(0);
@@ -255,7 +262,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (outbound) {
         for (const track of outbound.getTracks()) {
           try {
-            pc.addTrack(track, outbound);
+            const sender = pc.addTrack(track, outbound);
+            if (track === screenAudioTrackRef.current) {
+              screenAudioSendersRef.current.set(peerId, sender);
+            }
           } catch {
             // A track can disappear during device changes.
           }
@@ -364,6 +374,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       }
       peersRef.current.delete(peerId);
     }
+    screenAudioSendersRef.current.delete(peerId);
     setRemoteStreams((current) => {
       if (!current[peerId]) return current;
       const next = { ...current };
@@ -557,32 +568,50 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const stopScreenShare = useCallback(async () => {
     const screenTrack = screenTrackRef.current;
-    if (!screenTrack) return;
+    const screenAudio = screenAudioTrackRef.current;
+    if (!screenTrack && !screenAudio) return;
+
     screenTrackRef.current = null;
+    screenAudioTrackRef.current = null;
     screenRef.current = false;
     setScreenSharing(false);
+    setScreenAudioEnabled(false);
     setScreenStream(null);
+
     const camera = cameraTrackRef.current;
     const outbound = outboundRef.current;
     if (outbound) {
       outbound.getVideoTracks().forEach((track) => outbound.removeTrack(track));
       if (camera) outbound.addTrack(camera);
+      if (screenAudio) outbound.removeTrack(screenAudio);
     }
-    await Promise.all(
-      [...peersRef.current.values()].map(async (wrapper) => {
-        const sender =
-          wrapper.pc.getSenders().find((item) => item.track === screenTrack) ||
-          wrapper.pc.getSenders().find((item) => item.track?.kind === 'video');
-        if (sender) {
-          try {
-            await sender.replaceTrack(camera || null);
-          } catch {
-            // The peer may be closing.
-          }
+
+    await Promise.all([
+      ...(screenTrack
+        ? [...peersRef.current.values()].map(async (wrapper) => {
+            const sender =
+              wrapper.pc.getSenders().find((item) => item.track === screenTrack) ||
+              wrapper.pc.getSenders().find((item) => item.track?.kind === 'video');
+            if (sender) {
+              try {
+                await sender.replaceTrack(camera || null);
+              } catch {
+                // The peer may be closing.
+              }
+            }
+          })
+        : []),
+      ...[...screenAudioSendersRef.current.values()].map(async (sender) => {
+        try {
+          await sender.replaceTrack(null);
+        } catch {
+          // The peer may be closing.
         }
       }),
-    );
-    screenTrack.stop();
+    ]);
+
+    screenTrack?.stop();
+    screenAudio?.stop();
     broadcastMediaState();
   }, [broadcastMediaState]);
 
@@ -596,38 +625,85 @@ export function CallProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30 } },
-        audio: false,
-      });
+      let display: MediaStream | null = null;
+      try {
+        display = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: { ideal: 30 } },
+          audio: true,
+        });
+      } catch (error) {
+        const name = error instanceof Error ? error.name : '';
+        if (name === 'TypeError' || name === 'NotSupportedError') {
+          display = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { ideal: 30 } },
+            audio: false,
+          });
+          toast.info('Áudio da tela indisponível', 'Este navegador só compartilha a imagem.');
+        } else {
+          throw error;
+        }
+      }
+      if (!display) throw new Error('Nenhuma tela foi selecionada.');
+
       const track = display.getVideoTracks()[0];
       if (!track) throw new Error('Nenhuma tela foi selecionada.');
+      const audio = display.getAudioTracks()[0] || null;
+      if (audio) audio.contentHint = 'music';
+
       track.onended = () => {
         void stopScreenShare();
       };
       screenTrackRef.current = track;
+      screenAudioTrackRef.current = audio;
       screenRef.current = true;
       setScreenStream(display);
       setScreenSharing(true);
+      setScreenAudioEnabled(Boolean(audio));
+
+      if (!audio) {
+        toast.info(
+          'Tela compartilhada sem áudio',
+          'Para transmitir o som, marque "Compartilhar áudio" na janela de seleção.',
+        );
+      }
 
       const outbound = outboundRef.current;
       if (outbound) {
         outbound.getVideoTracks().forEach((item) => outbound.removeTrack(item));
         outbound.addTrack(track);
+        if (audio) outbound.addTrack(audio);
       }
 
-      for (const wrapper of peersRef.current.values()) {
-        if (wrapper.pc.signalingState === 'closed') continue;
-        const sender = wrapper.pc.getSenders().find((item) => item.track?.kind === 'video');
-        try {
-          if (sender) await sender.replaceTrack(track);
-          else if (outbound) wrapper.pc.addTrack(track, outbound);
-        } catch {
-          // The peer may be renegotiating.
-        }
-      }
+      await Promise.all(
+        [...peersRef.current.entries()].map(async ([peerId, wrapper]) => {
+          if (wrapper.pc.signalingState === 'closed') return;
+          const videoSender = wrapper.pc.getSenders().find((item) => item.track?.kind === 'video');
+          try {
+            if (videoSender) await videoSender.replaceTrack(track);
+            else if (outbound) wrapper.pc.addTrack(track, outbound);
+          } catch {
+            // The peer may be renegotiating.
+          }
+          if (!audio) return;
+          const audioSender = screenAudioSendersRef.current.get(peerId);
+          if (audioSender) {
+            try {
+              await audioSender.replaceTrack(audio);
+            } catch {
+              // The peer may be renegotiating.
+            }
+          } else if (outbound) {
+            try {
+              screenAudioSendersRef.current.set(peerId, wrapper.pc.addTrack(audio, outbound));
+            } catch {
+              // The peer may be renegotiating.
+            }
+          }
+        }),
+      );
       broadcastMediaState();
     } catch (error) {
+      if (screenTrackRef.current) await stopScreenShare();
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
         toast.info('Compartilhamento cancelado');
       } else {
@@ -750,6 +826,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       micEnabled,
       cameraEnabled,
       screenSharing,
+      screenAudioEnabled,
       connecting,
       durationSeconds,
       startCall,
@@ -774,6 +851,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       rejectIncoming,
       remoteStreams,
       screenSharing,
+      screenAudioEnabled,
       screenStream,
       startCall,
       toggleCamera,

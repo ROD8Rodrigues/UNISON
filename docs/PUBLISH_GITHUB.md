@@ -17,12 +17,13 @@ O instalador atual tem 112,99 MiB e o portátil 101,05 MiB, então ambos cabem c
 
 ## Estado do repositório
 
-- Código publicado em `main` no commit `2cfaf1c` (`feat: UNISON 1.0.0`).
-- Release **v1.0.0** publicado em `https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0`.
-- Assets publicados e verificados por SHA-256:
-  - `UNISON-Setup-1.0.0.exe` — 118.476.579 bytes
-  - `UNISON-Portable-1.0.0.exe` — 105.956.457 bytes
-  - `SHA256SUMS.txt` — 182 bytes
+- Código publicado em `main`; a release atual é **v1.0.1**.
+- Release **v1.0.0** em `https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0`.
+- Release **v1.0.1** em `https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1` (correções de áudio no compartilhamento de tela e chat durante chamadas).
+- Assets da v1.0.1 verificados por SHA-256:
+  - `UNISON-Setup-1.0.1.exe` — 118.477.793 bytes
+  - `UNISON-Portable-1.0.1.exe` — 105.957.631 bytes
+  - `SHA256SUMS.txt` — 183 bytes
 - O push foi feito via HTTPS com a credencial do Windows Credential Manager. A chave SSH `unison_deploy` continua **não** cadastrada no GitHub.
 
 ## 1. Enviar o código
@@ -57,13 +58,13 @@ git push -u origin main
 
 1. Abra `https://github.com/ROD8Rodrigues/UNISON/releases/new`.
 2. Preencha:
-   - **Choose a tag:** `v1.0.0` → **Create new tag on publish**.
+   - **Choose a tag:** `v1.0.1` → **Create new tag on publish**.
    - **Target:** `main`.
-   - **Release title:** `UNISON 1.0.0`.
-   - **Describe this release:** cole o conteúdo de [`docs/releases/v1.0.0.md`](releases/v1.0.0.md).
+   - **Release title:** `UNISON 1.0.1`.
+   - **Describe this release:** cole o conteúdo de [`docs/releases/v1.0.1.md`](releases/v1.0.1.md).
 3. Em **Attach binaries**, anexe os três arquivos de `desktop/release/`:
-   - `UNISON-Setup-1.0.0.exe`
-   - `UNISON-Portable-1.0.0.exe`
+   - `UNISON-Setup-1.0.1.exe`
+   - `UNISON-Portable-1.0.1.exe`
    - `SHA256SUMS.txt`
 4. Clique em **Publish release**.
 5. Abra o link em uma janela anônima para confirmar que o download funciona sem login:
@@ -82,34 +83,34 @@ O `gh` não está instalado nesta máquina. Se quiser usar a linha de comando:
 winget install --id GitHub.cli -e
 gh auth login
 
-gh release create v1.0.0 `
-  "desktop/release/UNISON-Setup-1.0.0.exe" `
-  "desktop/release/UNISON-Portable-1.0.0.exe" `
+gh release create v1.0.1 `
+  "desktop/release/UNISON-Setup-1.0.1.exe" `
+  "desktop/release/UNISON-Portable-1.0.1.exe" `
   "desktop/release/SHA256SUMS.txt" `
   --repo ROD8Rodrigues/UNISON `
-  --title "UNISON 1.0.0" `
-  --notes-file docs/releases/v1.0.0.md
+  --title "UNISON 1.0.1" `
+  --notes-file docs/releases/v1.0.1.md
 ```
 
 Para abrir o release publicado:
 
 ```powershell
-gh release view v1.0.0 --repo ROD8Rodrigues/UNISON --web
+gh release view v1.0.1 --repo ROD8Rodrigues/UNISON --web
 ```
 
 ## 4. Verificar os arquivos antes de publicar
 
 ```powershell
-Get-FileHash .\desktop\release\UNISON-Setup-1.0.0.exe -Algorithm SHA256
-Get-FileHash .\desktop\release\UNISON-Portable-1.0.0.exe -Algorithm SHA256
+Get-FileHash .\desktop\release\UNISON-Setup-1.0.1.exe -Algorithm SHA256
+Get-FileHash .\desktop\release\UNISON-Portable-1.0.1.exe -Algorithm SHA256
 Get-Content .\desktop\release\SHA256SUMS.txt
 ```
 
 Hashes desta versão:
 
 ```text
-5b5e307a8031c50bb7a8045a8e9476e3cc3dedc91a5f4bf141be8dda2e06f6db  UNISON-Setup-1.0.0.exe
-2f9902194efd55990c0c46067955d31b322c89fd0afbae355d5f538b31b2ceca  UNISON-Portable-1.0.0.exe
+0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286  UNISON-Setup-1.0.1.exe
+254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056  UNISON-Portable-1.0.1.exe
 ```
 
 ## 5. Antes de commitar
@@ -148,8 +149,8 @@ Não substitua os arquivos de um release já publicado: quem baixou antes pode t
 
 - [x] Branch local renomeada para `main`.
 - [x] Código enviado para `ROD8Rodrigues/UNISON`.
-- [x] Tag `v1.0.0` criada.
-- [x] Release notes coladas de `docs/releases/v1.0.0.md`.
+- [x] Tags `v1.0.0` e `v1.0.1` criadas.
+- [x] Release notes coladas de `docs/releases/v1.0.1.md`.
 - [x] Setup, Portátil e `SHA256SUMS.txt` anexados.
 - [x] Release publicado.
 - [x] Download anônimo verificado (HTTP 200 nos três assets) e digest SHA-256 conferido.

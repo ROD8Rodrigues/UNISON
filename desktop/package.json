@@ -1,6 +1,6 @@
 {
   "name": "unison-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Aplicativo desktop do UNISON para Windows",
   "main": "main.js",

@@ -46,7 +46,7 @@ Na raiz do projeto:
 ```powershell
 cd C:\Users\Chris\Telawork
 
-# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.0.0.zip
+# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.0.1.zip
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-alwaysdata.ps1
 ```
 
@@ -56,9 +56,9 @@ O script:
 - copia `server/` (sem `node_modules`, `data`, `uploads`, `.env`, testes e legado);
 - copia `client/dist/`;
 - cria `DEPLOY.txt` com o resumo;
-- gera `deploy/UNISON-alwaysdata-1.0.0.zip` e mostra o SHA-256.
+- gera `deploy/UNISON-alwaysdata-1.0.1.zip` e mostra o SHA-256.
 
-Build atual do pacote: **0,96 MiB (1.008.901 bytes)**, SHA-256 `170851e7bb5f1ceb5eaef3e28c1d5dcf003cb434ba985bc59ab5cfd6b1cf525f` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.0.0.zip.sha256`).
+Build atual do pacote: **0,96 MiB (1.009.881 bytes)**, SHA-256 `04704d4a463c1e8f8fc7dc0a819fd1a42b1b5abf8bb1d3d14b6059fd207cf47e` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.0.1.zip.sha256`).
 
 O zip deve conter, na raiz:
 
@@ -94,7 +94,7 @@ No PowerShell, na raiz do projeto:
 ssh <usuario-ssh>@ssh-<conta>.alwaysdata.net
 
 # envie o zip
-scp .\deploy\UNISON-alwaysdata-1.0.0.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
+scp .\deploy\UNISON-alwaysdata-1.0.1.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
 ```
 
 Se preferir interface gráfica, use WinSCP/FileZilla no mesmo host e porta 22, modo SFTP.
@@ -104,14 +104,14 @@ No servidor:
 ```bash
 mkdir -p ~/unison
 cd ~/unison
-unzip ~/UNISON-alwaysdata-1.0.0.zip
+unzip ~/UNISON-alwaysdata-1.0.1.zip
 ls -la
 ```
 
 Se `unzip` não estiver disponível, extraia pelo gerenciador de arquivos da alwaysdata ou use:
 
 ```bash
-python3 -m zipfile -e ~/UNISON-alwaysdata-1.0.0.zip ~/unison
+python3 -m zipfile -e ~/UNISON-alwaysdata-1.0.1.zip ~/unison
 ```
 
 A estrutura final precisa ser:
@@ -415,6 +415,8 @@ O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_E
 
 **Smoke test remoto aprovado:** `/health`, SPA, service worker, manifest, asset JS, registro de dois usuários, login, cookie `Secure`/`HttpOnly`/`SameSite=Lax`, refresh, `/me`, DM, mensagem entre usuários, Socket.IO com dois clientes, `call:start`/`call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended` e upload/download de arquivo. Os usuários e o arquivo de teste foram removidos depois.
 
+**Atualização do frontend 1.0.1 (18/11/2026):** o novo `client/dist`, com áudio no compartilhamento de tela e janela de chamada flutuante/minimizável, foi enviado por `tar`/`scp` e trocado atomicamente em `~/unison/client/dist`. O diretório anterior ficou em `~/unison/client/dist.old-20261118202035` para rollback. A raiz passou a servir `assets/index-CdvLNs3a.js` e `assets/index-BINJmH_D.css`; `/health`, o JS novo e o CSS responderam HTTP 200. Nenhum arquivo de `server/data` ou `server/uploads` foi alterado.
+
 **Pendências reais:**
 
 - O campo **Working directory** do site está com o caminho duplicado (`/home/telawork/home/telawork/unison/server`). O site está funcionando por um symlink temporário criado em `~/home/telawork/unison/server`. Corrija o campo para `unison/server` e depois remova o symlink.
@@ -423,7 +425,7 @@ O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_E
 - SMTP não configurado: emails de verificação/recuperação ficam apenas no log do servidor.
 - Backup externo e teste com duas máquinas ainda pendentes.
 
-O GitHub também está publicado: código em `main` e release [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) com instalador, portátil e checksums.
+O GitHub também está publicado: código em `main` e release [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) com instalador, portátil e checksums. A [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanece disponível como versão anterior.
 
 ### Chave SSH de deploy
 
@@ -468,8 +470,9 @@ Nunca envie a senha em arquivos, issues ou commits.
 - [x] Mensagem e upload testados.
 - [x] Sinalização de chamada testada (`call:start`, `accept`, `webrtc:signal`, `ended`).
 - [ ] Chamada real com câmera/microfone validada.
+- [x] Captura de tela com áudio loopback confirmada no smoke do desktop 1.0.1.
 - [x] `serverUrl` configurado no desktop.
-- [ ] Desktop reiniciado e conectado ao servidor remoto.
+- [x] Desktop reiniciado e conectado ao servidor remoto.
 - [ ] Duas máquinas conectadas à mesma conta.
 - [ ] Backup externo configurado.
 - [x] Link do instalador publicado no GitHub Releases.

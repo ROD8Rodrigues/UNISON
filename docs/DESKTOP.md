@@ -6,28 +6,28 @@ O UNISON é distribuído para Windows x64 como aplicativo Electron com o backend
 
 ## Artefatos gerados
 
-Versão **1.0.0**, em `desktop/release/`:
+Versão **1.0.1**, em `desktop/release/`:
 
 | Arquivo | Tamanho | Finalidade |
 | --- | --- | --- |
-| `UNISON-Setup-1.0.0.exe` | 112,99 MiB (118.476.579 bytes) | Instalador NSIS por usuário, com atalhos e desinstalador |
-| `UNISON-Portable-1.0.0.exe` | 101,05 MiB (105.956.457 bytes) | Executável portátil, sem instalação |
+| `UNISON-Setup-1.0.1.exe` | 112,99 MiB (118.477.793 bytes) | Instalador NSIS por usuário, com atalhos e desinstalador |
+| `UNISON-Portable-1.0.1.exe` | 101,05 MiB (105.957.631 bytes) | Executável portátil, sem instalação |
 | `win-unpacked/UNISON.exe` | — | Build não instalado, usado em testes e diagnóstico |
-| `SHA256SUMS.txt` | — | Checksums SHA-256 dos dois `.exe` |
+| `SHA256SUMS.txt` | 183 bytes | Checksums SHA-256 dos dois `.exe` |
 
-Checksums da versão 1.0.0:
+Checksums da versão 1.0.1:
 
 ```text
-5b5e307a8031c50bb7a8045a8e9476e3cc3dedc91a5f4bf141be8dda2e06f6db  UNISON-Setup-1.0.0.exe
-2f9902194efd55990c0c46067955d31b322c89fd0afbae355d5f538b31b2ceca  UNISON-Portable-1.0.0.exe
+0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286  UNISON-Setup-1.0.1.exe
+254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056  UNISON-Portable-1.0.1.exe
 ```
 
 Confira no Windows:
 
 ```powershell
-Get-FileHash .\UNISON-Setup-1.0.0.exe -Algorithm SHA256
+Get-FileHash .\UNISON-Setup-1.0.1.exe -Algorithm SHA256
 # ou
-certutil -hashfile .\UNISON-Setup-1.0.0.exe SHA256
+certutil -hashfile .\UNISON-Setup-1.0.1.exe SHA256
 ```
 
 Os hashes mudam a cada rebuild, mesmo com o mesmo código. Gere novamente o `SHA256SUMS.txt` após qualquer nova compilação.
@@ -38,14 +38,14 @@ O build instalado ocupa aproximadamente **328 MB** em disco (`win-unpacked`). O 
 
 ### Instalador
 
-1. Execute `UNISON-Setup-1.0.0.exe`.
+1. Execute `UNISON-Setup-1.0.1.exe`.
 2. Escolha a pasta (a instalação padrão é por usuário, sem exigir administrador).
 3. O instalador cria atalhos na área de trabalho e no menu Iniciar e abre o aplicativo ao final.
 
 Instalação silenciosa, útil em implantação:
 
 ```powershell
-.\UNISON-Setup-1.0.0.exe /S /D=C:\UNISON
+.\UNISON-Setup-1.0.1.exe /S /D=C:\UNISON
 ```
 
 O parâmetro `/D` deve ser o último e não é obrigatório. Para desinstalar:
@@ -58,13 +58,13 @@ Também é possível desinstalar por **Configurações → Aplicativos → UNISO
 
 ### Portátil
 
-Execute `UNISON-Portable-1.0.0.exe` diretamente. Ele se extrai para uma pasta temporária a cada inicialização, então o primeiro início é mais lento que o do aplicativo instalado. Não cria atalhos e não requer instalação.
+Execute `UNISON-Portable-1.0.1.exe` diretamente. Ele se extrai para uma pasta temporária a cada inicialização, então o primeiro início é mais lento que o do aplicativo instalado. Não cria atalhos e não requer instalação.
 
 O portátil **não é portátil em dados**: assim como o instalado, ele grava o banco e os uploads em `%APPDATA%\UNISON`. Para levar os dados em uma pasta removível, defina `UNISON_USER_DATA` antes de abrir:
 
 ```powershell
 $env:UNISON_USER_DATA = 'E:\UNISONData'
-.\UNISON-Portable-1.0.0.exe
+.\UNISON-Portable-1.0.1.exe
 ```
 
 Isso não criptografa os dados. Use apenas em mídia confiável.
@@ -211,7 +211,7 @@ Detalhes operacionais:
 - Navegação para fora da origem do app é bloqueada; links `http`, `https` e `mailto` abrem no navegador padrão.
 - `webview` é bloqueada.
 - Permissões permitidas apenas para a origem do app: mídia, captura de tela, tela cheia, notificações e escrita de clipboard sanitizada. As demais são negadas.
-- Compartilhamento de tela usa o seletor do sistema (`useSystemPicker`).
+- Compartilhamento de tela usa o seletor do sistema quando disponível (macOS 15+) ou a primeira tela detectada no Windows; o áudio do sistema é capturado por **loopback** (`audio: 'loopback'`) a partir da 1.0.1. Com vários monitores, o Windows ainda não oferece escolha da tela dentro do app.
 - O token de acesso fica em memória no renderer; o refresh continua em cookie `HttpOnly`.
 - O `jwtSecret` fica em texto simples em `desktop-config.json`, protegido pelas permissões do perfil do Windows. Não há DPAPI, cofre de credenciais ou criptografia do banco.
 - O binário **não é assinado** e não há auto-update/telemetria. Atualizações são feitas instalando uma nova versão sobre a anterior; os dados em `%APPDATA%\UNISON` são preservados.
@@ -256,7 +256,7 @@ Arquivos gerados não devem ser commitados: `desktop/release/`, `desktop/staging
 
 ## Smoke test
 
-O modo de teste inicia o backend e o renderer reais, oculta a janela, valida a tela inicial (login ou sessão restaurada), registra contas temporárias, testa o cookie de refresh no renderer, captura uma imagem e encerra. O resultado fica no diretório de dados:
+O modo de teste inicia o backend e o renderer reais, oculta a janela, valida a tela inicial (login ou sessão restaurada), registra contas temporárias, testa o cookie de refresh no renderer, captura uma imagem, testa `getDisplayMedia` com áudio e encerra. O resultado fica no diretório de dados:
 
 ```powershell
 $env:UNISON_USER_DATA = "$env:TEMP\unison-smoke"
@@ -280,6 +280,7 @@ O resultado contém:
 - `api`: registro e `/api/auth/me` via HTTP;
 - `renderer`: registro, refresh e `/me` executados dentro da janela;
 - `cookie`: `httpOnly`, `secure`, `sameSite` e `path`;
+- `displayMedia`: suporte, quantidade de faixas de vídeo/áudio, rótulo da faixa de áudio ou erro;
 - `screenshotBytes` e `smoke-screenshot.png`.
 
 Para testar o modo remoto no smoke:
@@ -312,6 +313,7 @@ Data: **17/11/2026** (horário local), Windows 10 22H2 x64.
 | Desinstalação silenciosa | ✅ pasta e atalhos removidos |
 | Smoke remoto (`http://127.0.0.1:60000`) | ✅ interface + `/health`; config com BOM aceito |
 | Captura real da tela de login | ✅ conferida visualmente |
+| Captura de tela com áudio loopback (1.0.1) | ✅ `win-unpacked`: 1 faixa de vídeo + 1 faixa `System audio` |
 | `npm audit` | ⚠️ `server --omit=dev`: 0; `client`/`desktop`: advisory dev-only de `picomatch` sem patch |
 | Assinatura Authenticode | ❌ `NotSigned` (sem certificado) |
 | Windows 11, ARM64, macOS e Linux | ❌ não testados |
@@ -329,7 +331,7 @@ O teste de duas inicializações confirmou que o banco SQLite e o segredo JWT n�
 - **Email local limitado:** sem SMTP, verificação e reset não são entregues; com SMTP, links usam porta aleatória e podem expirar ao reiniciar.
 - **Dados sem criptografia:** banco, uploads e segredo JWT ficam legíveis no perfil. Não há E2E.
 - **Um único processo:** sem suporte a múltiplas instâncias sobre o mesmo SQLite.
-- **Mídia real não validada no desktop:** permissões de câmera/microfone, captura de tela e chamadas com dois dispositivos não foram exercitadas dentro do Electron.
+- **Mídia real parcialmente validada no desktop:** o smoke do 1.0.1 confirmou captura de tela com faixa de áudio loopback (`System audio`). Permissões de câmera/microfone, chamadas com dois dispositivos e o áudio efetivamente ouvido pelo outro participante ainda não foram exercitados dentro do Electron.
 - **Notificações nativas não validadas:** a permissão é concedida, mas o comportamento no Windows e com o app fechado não foi testado.
 - **Sem teste em Windows 11/ARM64:** compatibilidade esperada, não comprovada.
 - **Instalador NSIS sem testes de upgrade:** instalar por cima deve preservar dados, mas o cenário de downgrade/upgrade não foi automatizado.

@@ -7,6 +7,7 @@ Este documento separa o que foi validado do que depende de ambiente externo. A c
 **Status: parcialmente validado.**
 
 - A API de chamadas, o ciclo de participantes, a autorização e a sinalização WebRTC ponta a ponta via Socket.IO estão cobertos por testes automatizados.
+- A versão 1.0.1 passou a solicitar a faixa de áudio no compartilhamento de tela (`audio: true`) e o app desktop usa captura **loopback** do Windows; a janela da chamada virou flutuante e minimizável, liberando o chat. Essas correções foram compiladas e publicadas, mas ainda não foram validadas com áudio real entre dois dispositivos.
 - Não foi possível validar áudio/vídeo real, permissões de câmera/microfone, compartilhamento de tela e qualidade de rede neste ambiente, pois isso exige dois navegadores/dispositivos com mídia.
 - A topologia é **mesh**, limitada a 9 participantes. Não há SFU; CPU, banda e número de conexões crescem quadraticamente.
 - O padrão usa STUN público do Google. Sem TURN, chamadas podem falhar em NAT simétrico, redes corporativas e algumas operadoras móveis.
@@ -41,7 +42,7 @@ Este documento separa o que foi validado do que depende de ambiente externo. A c
 - SMTP no modo local é limitado: sem SMTP não há entrega de verificação/reset; com SMTP, os links usam `http://127.0.0.1:<porta aleatória>` e podem deixar de funcionar ao reiniciar. Para email real, use o modo remoto.
 - O portátil se extrai para temporários a cada execução, mas **não é portátil em dados**: ainda grava em `%APPDATA%\UNISON` (salvo `UNISON_USER_DATA`).
 - Instalação/desinstalação, duas inicializações e modo remoto em loopback foram testados. Upgrade/downgrade, assinatura, Windows 11/ARM64 e uso real entre dois computadores não foram.
-- Mídia real (câmera/microfone/tela) e notificações nativas dentro do Electron não foram validadas.
+- Mídia real (câmera/microfone/tela) e notificações nativas dentro do Electron não foram validadas em chamadas. A partir da 1.0.1 o app pede áudio de tela com `audio: 'loopback'`; o smoke test do build 1.0.1 confirmou a captura com 1 faixa de vídeo e 1 faixa de áudio (`System audio`). O áudio ouvido por outro participante ainda não foi validado.
 - O build instalado ocupa aproximadamente 328 MB; o instalador tem ~113 MiB e o portátil ~101 MiB.
 
 Documentação operacional: [DESKTOP.md](DESKTOP.md).
@@ -169,8 +170,8 @@ Consulte [SECURITY.md](SECURITY.md).
 - Fluxos HTTP: registro, login, refresh com cookie seguro, `/me`, 404 JSON, SPA fallback, manifest e service worker.
 - Banco: migrations aplicadas em banco vazio em memória e em arquivo temporário.
 - Segurança: headers, CORS, autorização, validação, uploads, revogação de sessão e isolamento de salas cobertos por testes.
-- Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado.
+- Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado. No build 1.0.1, o smoke do `win-unpacked` e do portátil também confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio loopback (`System audio`).
 - Desktop, controles observados: backend em `127.0.0.1`, `contextIsolation`/`sandbox`, cookie de refresh `HttpOnly`/`SameSite=Lax`/`Path=/api/auth`, `Secure=false` apenas em loopback e `serverUrl` remoto restrito a HTTPS.
-- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Mídia real e duas máquinas ainda não foram testadas.
+- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Em 18/11/2026 o bundle 1.0.1 com as correções de chamada foi publicado e servido pela alwaysdata (`/health` e assets com HTTP 200). A captura de tela com áudio loopback foi confirmada no Electron, mas a transmissão de áudio de tela entre duas máquinas ainda não foi testada.
 
 Tudo além disso deve ser tratado como **não validado** até execução em ambiente real.

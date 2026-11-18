@@ -81,7 +81,7 @@ Build de produção observado:
 O pacote de deploy gratuito foi gerado e testado localmente. A conta alwaysdata `telawork`, o usuário SSH e o host já foram criados, mas o upload e a configuração do site Node.js ainda não foram executados.
 
 ```powershell
-# gera deploy/UNISON-alwaysdata-1.0.0.zip
+# gera deploy/UNISON-alwaysdata-1.0.1.zip
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-alwaysdata.ps1
 
 # extrai o zip, sobe o servidor em NODE_ENV=production e testa os fluxos
@@ -195,18 +195,20 @@ O smoke do build empacotado validou, dentro do renderer:
 
 O modo local foi validado com banco temporário. O modo remoto foi validado apenas contra backend local em HTTP; não houve teste com DNS/TLS públicos nem entre dois computadores.
 
-Artefatos da versão 1.0.0:
+Artefatos da versão 1.0.1:
 
 | Arquivo | Tamanho | SHA-256 |
 | --- | --- | --- |
-| `UNISON-Setup-1.0.0.exe` | 118.476.579 bytes | `5b5e307a8031c50bb7a8045a8e9476e3cc3dedc91a5f4bf141be8dda2e06f6db` |
-| `UNISON-Portable-1.0.0.exe` | 105.956.457 bytes | `2f9902194efd55990c0c46067955d31b322c89fd0afbae355d5f538b31b2ceca` |
+| `UNISON-Setup-1.0.1.exe` | 118.477.793 bytes | `0aaefa21dcbda1f115e0f89048e322f028cb1277e588c612783fb1f5f10e0286` |
+| `UNISON-Portable-1.0.1.exe` | 105.957.631 bytes | `254d2b90bfb7a96daded31993a65587bbfc98ffcf231870e5fb5ca07e7216056` |
+
+No smoke do `win-unpacked` e do portátil 1.0.1, além dos itens acima, `getDisplayMedia({ video: true, audio: true })` retornou 1 faixa de vídeo e 1 faixa de áudio com rótulo `System audio` (loopback do Electron).
 
 Os executáveis estão **`NotSigned`**: assinatura Authenticode, reputação de SmartScreen, upgrade e Windows 11/ARM64 não foram validados.
 
 ## O que **não** está coberto por automação
 
-- Chamadas com mídia real, permissões de câmera/microfone e compartilhamento de tela.
+- Chamadas com mídia real, permissões de câmera/microfone e transmissão de tela entre participantes.
 - Compatibilidade entre navegadores reais e sistemas operacionais.
 - Entrega real de email via SMTP.
 - Instalação/execução da PWA em Android/iOS; no desktop, a distribuição validada é o `.exe`, não a instalação PWA.

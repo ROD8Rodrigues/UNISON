@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Maximize2,
   Mic,
   MicOff,
+  Minimize2,
   Monitor,
   Phone,
   PhoneOff,
@@ -41,7 +43,15 @@ function VideoTile({
 }
 
 function LocalTile() {
-  const { activeCall, localStream, screenStream, screenSharing, cameraEnabled, micEnabled } = useCall();
+  const {
+    activeCall,
+    localStream,
+    screenStream,
+    screenSharing,
+    screenAudioEnabled,
+    cameraEnabled,
+    micEnabled,
+  } = useCall();
   const user = useAuthStore((state) => state.user);
   const preview = screenSharing ? screenStream : localStream;
   const showVideo = Boolean(preview && (screenSharing || (activeCall?.kind === 'video' && cameraEnabled)));
@@ -49,7 +59,11 @@ function LocalTile() {
   return (
     <div className={`call-tile local${screenSharing ? ' sharing' : ''}`}>
       {showVideo ? (
-        <VideoTile stream={preview} muted className="call-video mirrored" />
+        <VideoTile
+          stream={preview}
+          muted
+          className={`call-video${screenSharing ? '' : ' mirrored'}`}
+        />
       ) : (
         <div className="call-tile-empty">
           <Avatar name={user?.displayName || 'Você'} src={user?.avatarUrl} size={72} />
@@ -59,9 +73,13 @@ function LocalTile() {
       <span className="call-tile-label">
         {!micEnabled && <MicOff size={13} />}
         Você
-        {screenSharing ? ' · tela' : ''}
+        {screenSharing ? (screenAudioEnabled ? ' · tela + áudio' : ' · tela') : ''}
       </span>
-      {screenSharing && <span className="call-screen-badge">Compartilhando tela</span>}
+      {screenSharing && (
+        <span className="call-screen-badge">
+          {screenAudioEnabled ? 'Compartilhando tela + áudio' : 'Compartilhando tela'}
+        </span>
+      )}
     </div>
   );
 }
@@ -123,6 +141,11 @@ export function CallOverlay() {
   } = useCall();
   const conversations = useAppStore((state) => state.conversations);
   const user = useAuthStore((state) => state.user);
+  const [minimized, setMinimized] = useState(false);
+
+  useEffect(() => {
+    if (activeCall?.id) setMinimized(false);
+  }, [activeCall?.id]);
 
   if (!activeCall && !incoming) return null;
 
@@ -142,91 +165,104 @@ export function CallOverlay() {
     });
 
     return (
-      <div className="call-overlay" role="dialog" aria-modal="true" aria-label="Chamada em andamento">
-        <header className="call-header">
-          <div>
-            <span className="call-kind">
-              {activeCall.kind === 'video' ? <Video size={15} /> : <Phone size={15} />}
-              Chamada de {activeCall.kind === 'video' ? 'vídeo' : 'áudio'}
-            </span>
-            <h2>{title}</h2>
-            <p>
-              {activeCall.status === 'active'
-                ? formatDuration(durationSeconds)
-                : connecting
-                  ? 'Conectando…'
-                  : 'Chamando…'}
-              <span className="call-participant-count">
-                {joined.length} {joined.length === 1 ? 'participante' : 'participantes'}
+      <div className="call-overlay" role="region" aria-label="Chamada em andamento">
+        <div className={`call-window${minimized ? ' minimized' : ''}`}>
+          <header className="call-header">
+            <div>
+              <span className="call-kind">
+                {activeCall.kind === 'video' ? <Video size={15} /> : <Phone size={15} />}
+                Chamada de {activeCall.kind === 'video' ? 'vídeo' : 'áudio'}
               </span>
-            </p>
-          </div>
-          <span className={`call-live-dot${activeCall.status === 'active' ? ' active' : ''}`} />
-        </header>
-
-        <div
-          className={`call-stage${remoteParticipants.length <= 1 ? ' call-stage-single' : ''}${
-            hasRemoteVideo && remoteParticipants.length > 1 ? ' call-stage-many' : ''
-          }`}
-        >
-          <LocalTile />
-          {remoteParticipants.map((participant) => (
-            <RemoteTile
-              key={participant.userId}
-              userId={participant.userId}
-              callKind={activeCall.kind}
-            />
-          ))}
-          {waiting && (
-            <div className="call-waiting">
-              <span className="ring-pulse" />
-              <h3>Aguardando alguém atender…</h3>
-              <p>A chamada está tocando para os outros participantes.</p>
+              <h2>{title}</h2>
+              <p>
+                {activeCall.status === 'active'
+                  ? formatDuration(durationSeconds)
+                  : connecting
+                    ? 'Conectando…'
+                    : 'Chamando…'}
+                <span className="call-participant-count">
+                  {joined.length} {joined.length === 1 ? 'participante' : 'participantes'}
+                </span>
+              </p>
             </div>
-          )}
-        </div>
+            <div className="call-header-actions">
+              <span className={`call-live-dot${activeCall.status === 'active' ? ' active' : ''}`} />
+              <button
+                type="button"
+                className="call-window-toggle"
+                onClick={() => setMinimized((value) => !value)}
+                aria-label={minimized ? 'Expandir chamada' : 'Minimizar chamada'}
+                title={minimized ? 'Expandir chamada' : 'Minimizar chamada'}
+              >
+                {minimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+              </button>
+            </div>
+          </header>
 
-        <footer className="call-controls">
-          <button
-            type="button"
-            className={`call-control${micEnabled ? '' : ' off'}`}
-            onClick={toggleMic}
-            aria-label={micEnabled ? 'Desativar microfone' : 'Ativar microfone'}
+          <div
+            className={`call-stage${remoteParticipants.length <= 1 ? ' call-stage-single' : ''}${
+              hasRemoteVideo && remoteParticipants.length > 1 ? ' call-stage-many' : ''
+            }`}
           >
-            {micEnabled ? <Mic size={21} /> : <MicOff size={21} />}
-            <span>{micEnabled ? 'Microfone' : 'Mudo'}</span>
-          </button>
-          {activeCall.kind === 'video' && (
+            <LocalTile />
+            {remoteParticipants.map((participant) => (
+              <RemoteTile
+                key={participant.userId}
+                userId={participant.userId}
+                callKind={activeCall.kind}
+              />
+            ))}
+            {waiting && (
+              <div className="call-waiting">
+                <span className="ring-pulse" />
+                <h3>Aguardando alguém atender…</h3>
+                <p>A chamada está tocando para os outros participantes.</p>
+              </div>
+            )}
+          </div>
+
+          <footer className="call-controls">
             <button
               type="button"
-              className={`call-control${cameraEnabled ? '' : ' off'}`}
-              onClick={toggleCamera}
-              aria-label={cameraEnabled ? 'Desativar câmera' : 'Ativar câmera'}
-              disabled={screenSharing}
+              className={`call-control${micEnabled ? '' : ' off'}`}
+              onClick={toggleMic}
+              aria-label={micEnabled ? 'Desativar microfone' : 'Ativar microfone'}
             >
-              {cameraEnabled && !screenSharing ? <Video size={21} /> : <VideoOff size={21} />}
-              <span>Câmera</span>
+              {micEnabled ? <Mic size={21} /> : <MicOff size={21} />}
+              <span>{micEnabled ? 'Microfone' : 'Mudo'}</span>
             </button>
-          )}
-          <button
-            type="button"
-            className={`call-control${screenSharing ? ' on' : ''}`}
-            onClick={() => void toggleScreen()}
-            aria-label={screenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
-          >
-            <Monitor size={21} />
-            <span>{screenSharing ? 'Parar tela' : 'Tela'}</span>
-          </button>
-          <button
-            type="button"
-            className="call-control hangup"
-            onClick={leaveCall}
-            aria-label="Sair da chamada"
-          >
-            <PhoneOff size={21} />
-            <span>Sair</span>
-          </button>
-        </footer>
+            {activeCall.kind === 'video' && (
+              <button
+                type="button"
+                className={`call-control${cameraEnabled ? '' : ' off'}`}
+                onClick={toggleCamera}
+                aria-label={cameraEnabled ? 'Desativar câmera' : 'Ativar câmera'}
+                disabled={screenSharing}
+              >
+                {cameraEnabled && !screenSharing ? <Video size={21} /> : <VideoOff size={21} />}
+                <span>Câmera</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className={`call-control${screenSharing ? ' on' : ''}`}
+              onClick={() => void toggleScreen()}
+              aria-label={screenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
+            >
+              <Monitor size={21} />
+              <span>{screenSharing ? 'Parar tela' : 'Tela'}</span>
+            </button>
+            <button
+              type="button"
+              className="call-control hangup"
+              onClick={leaveCall}
+              aria-label="Sair da chamada"
+            >
+              <PhoneOff size={21} />
+              <span>Sair</span>
+            </button>
+          </footer>
+        </div>
       </div>
     );
   }
