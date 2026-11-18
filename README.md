@@ -6,6 +6,14 @@ A marca do UNISON combina o mascote de headset com o wordmark em caixa alta e o 
 
 Este repositório contém a reconstrução de produção do protótipo original: o backend monolítico em NeDB foi substituído por uma API Express modular com SQLite, e o frontend React foi implementado do zero. O protótipo original permanece preservado em `server/legacy/`.
 
+## Download
+
+- **Windows x64:** [UNISON 1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.0.0.exe`) e portátil (`UNISON-Portable-1.0.0.exe`), com `SHA256SUMS.txt`.
+- **Código-fonte:** [github.com/ROD8Rodrigues/UNISON](https://github.com/ROD8Rodrigues/UNISON).
+- **Web/PWA:** disponível quando o backend estiver publicado em `https://telawork.alwaysdata.net` (deploy pendente).
+
+Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um aviso. Confira o SHA-256 antes de executar.
+
 ## Estado atual
 
 - **Backend:** API REST + Socket.IO implementados, com autenticação, sessões, mensagens, comunidades, moderação, uploads, notificações e chamadas.

@@ -401,7 +401,19 @@ O código é single-node; para escala horizontal, migre para PostgreSQL + Redis 
 
 ## Status desta validação
 
-O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_ENV=production` foram validados localmente com `scripts/smoke-alwaysdata.ps1`: `/health`, SPA, service worker, registro, login, refresh cookie, `/me`, SQLite e uploads passaram. O cookie `Secure`/`HttpOnly`/`SameSite=Lax` também foi verificado com `COOKIE_SECURE=true`. A conta alwaysdata `telawork`, o usuário SSH `telawork` e o host `ssh-telawork.alwaysdata.net:22` já existem e aceitam autenticação por senha. O upload do zip, o `npm ci`, a criação do site Node.js e a troca do site Apache padrão ainda **não** foram concluídos; por isso `https://telawork.alwaysdata.net` ainda mostra a página padrão da alwaysdata.
+O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_ENV=production` foram validados localmente com `scripts/smoke-alwaysdata.ps1`: `/health`, SPA, service worker, registro, login, refresh cookie, `/me`, SQLite e uploads passaram. O cookie `Secure`/`HttpOnly`/`SameSite=Lax` também foi verificado com `COOKIE_SECURE=true`. A conta alwaysdata `telawork`, o usuário SSH `telawork` e o host `ssh-telawork.alwaysdata.net:22` já existem e aceitam autenticação por senha.
+
+O GitHub já está publicado: código em `main` (`2cfaf1c`), release [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) com instalador, portátil e checksums. O upload do zip, o `npm ci`, a criação do site Node.js e a troca do site Apache padrão ainda **não** foram concluídos; por isso `https://telawork.alwaysdata.net` ainda mostra a página padrão da alwaysdata.
+
+### Chave SSH de deploy
+
+A chave pública `unison_deploy` ainda precisa ser cadastrada em **Remote access → SSH/SFTP → Chaves SSH** no painel alwaysdata:
+
+```text
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJ9VIXMpBW9IWk26KI4H0RNS1HrrTjOoUsqFawnyFrY unison-deploy
+```
+
+Fingerprint: `SHA256:OSa2y/A+kqAY95l0ynjeb6vAKVRbOugNkXk/fVAEWCo`. A chave privada fica em `C:\Users\Chris\.ssh\unison_deploy` e nunca deve ser versionada. Até o cadastro, qualquer tentativa de `ssh -i ...` retorna `Permission denied (publickey)`. A mesma chave pode ser cadastrada no GitHub, mas o repositório já foi publicado via HTTPS.
 
 ### Se o prompt SSH não aceitar a senha
 
@@ -418,7 +430,9 @@ Nunca envie a senha em arquivos, issues ou commits.
 
 - [x] Conta alwaysdata Free criada (`telawork`).
 - [x] Pacote gerado com `scripts/prepare-alwaysdata.ps1`.
-- [x] Usuário SSH criado e testado (`telawork`).
+- [x] Usuário SSH criado (`telawork`); autenticação por senha disponível.
+- [ ] Chave pública `unison_deploy` cadastrada no painel alwaysdata.
+- [ ] Conexão SSH por chave validada.
 - [ ] Zip enviado e extraído em `~/unison`.
 - [ ] `npm ci --omit=dev` concluído em `~/unison/server`.
 - [ ] Pastas `data/` e `uploads/` criadas.
@@ -433,4 +447,4 @@ Nunca envie a senha em arquivos, issues ou commits.
 - [ ] `serverUrl` configurado no desktop.
 - [ ] Duas máquinas conectadas à mesma conta.
 - [ ] Backup externo configurado.
-- [ ] Link do instalador publicado no GitHub Releases.
+- [x] Link do instalador publicado no GitHub Releases.
