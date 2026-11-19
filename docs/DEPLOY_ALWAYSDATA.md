@@ -428,15 +428,14 @@ O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_E
 
 **Atualização 1.1.0 (18/11/2026):** o pacote `UNISON-alwaysdata-1.1.0.zip` foi enviado, o backup `~/backups/unison-20261118-204148.tgz` foi criado e `client/dist` e `server/src` foram trocados preservando `.env`, `data/` e `uploads/`. A migration `003_voice_channels.sql` está presente. A raiz serve `assets/index-1x31jT62.js` e `assets/index-VaZnam-b.css` (HTTP 200). O site Node.js **ainda precisa ser reiniciado no painel** para carregar o backend 1.1.0; até lá, `/health` responde `version: 1.0.0` e as rotas de voz/convite personalizado do backend novo ainda não estão ativas.
 
-**Atualização 1.2.0 (19/11/2026):** o pacote `UNISON-alwaysdata-1.2.0.zip` foi enviado, o backup `~/backups/unison-20261119-015244.tgz` foi criado e `client/dist`, `server/src`, `server/package.json`, `server/package-lock.json`, `server/index.js` e `server/.env.example` foram trocados preservando `.env`, `data/`, `uploads/` e `node_modules/`. O `.env` remoto recebeu `MAIL_TRANSPORT=sendmail`, `SENDMAIL_PATH=/usr/sbin/sendmail` e `MAIL_FROM=UNISON <no-reply@telawork.alwaysdata.net>`. A raiz serve `assets/index-BPx4Ru7T.js` e `assets/index-D88E7iwP.css` (HTTP 200). O site Node.js **ainda precisa ser reiniciado no painel** para carregar o backend 1.2.0; até lá, `/health` responde `version: 1.0.0`, o widget/HUD do frontend novo já é servido, mas as rotas e o transporte de email novos do backend ainda não estão ativos.
+**Atualização 1.2.0 (19/11/2026):** o pacote `UNISON-alwaysdata-1.2.0.zip` foi enviado, o backup `~/backups/unison-20261119-015244.tgz` foi criado e `client/dist`, `server/src`, `server/package.json`, `server/package-lock.json`, `server/index.js` e `server/.env.example` foram trocados preservando `.env`, `data/`, `uploads/` e `node_modules/`. O `.env` remoto recebeu `MAIL_TRANSPORT=sendmail`, `SENDMAIL_PATH=/usr/sbin/sendmail` e `MAIL_FROM=UNISON <no-reply@telawork.alwaysdata.net>`. O site foi reiniciado: `/health` responde `version: 1.2.0`, a raiz serve `assets/index-BPx4Ru7T.js` e `assets/index-D88E7iwP.css` (HTTP 200) e o transporte ativo é `sendmail:/usr/sbin/sendmail`.
 
 **Pendências reais:**
 
-- Reiniciar o site Node.js no painel da alwaysdata para ativar o backend 1.2.0 e confirmar `version: 1.2.0` em `/health`.
 - O campo **Working directory** do site está com o caminho duplicado (`/home/telawork/home/telawork/unison/server`). O site está funcionando por um symlink temporário criado em `~/home/telawork/unison/server`. Corrija o campo para `unison/server` e depois remova o symlink.
 - **Force HTTPS** ainda não está ativado: `http://telawork.alwaysdata.net/health` responde `200` em vez de redirecionar. Ative em **Web → Sites → Modificar site → SSL → Force HTTPS**.
 - A sinalização de chamadas foi validada, mas **mídia real** (câmera/microfone, duas máquinas, NAT) e canais de voz com duas contas ainda não foram testados.
-- O `sendmail` local aceitou uma mensagem (`250 OK`), mas a entrega real em Gmail/Outlook e o SPF do subdomínio ainda não foram validados.
+- O `sendmail` local aceitou uma mensagem (`250 OK`) e está ativo no backend 1.2.0, mas a entrega real em Gmail/Outlook e o SPF do subdomínio ainda não foram validados.
 - Backup externo e teste com duas máquinas ainda pendentes.
 
 O GitHub também está publicado: código em `main` e release [v1.2.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.2.0) com instalador, portátil e checksums. As releases [v1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.1.0), [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) e [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanecem disponíveis para rollback.
@@ -489,8 +488,8 @@ Nunca envie a senha em arquivos, issues ou commits.
 - [x] Pacote 1.2.0 enviado e `client/dist`/`server/src`/`package.json` atualizados em 19/11/2026, com backup `unison-20261119-015244.tgz`.
 - [x] `.env` remoto com `MAIL_TRANSPORT=sendmail`, `SENDMAIL_PATH=/usr/sbin/sendmail` e `MAIL_FROM` da conta.
 - [x] `sendmail` local aceitou mensagem de teste (`250 OK`).
-- [ ] Site Node.js reiniciado para carregar o backend 1.2.0 (`/health` com `version: 1.2.0`).
-- [ ] Entrega real de email em Gmail/Outlook validada após o restart.
+- [x] Site Node.js reiniciado; `/health` confirmou `version: 1.2.0` e o transporte `sendmail:/usr/sbin/sendmail`.
+- [ ] Entrega real de email em Gmail/Outlook validada.
 - [ ] Canais de voz, dock/HUD e convite personalizado validados em produção com duas contas.
 - [x] `serverUrl` configurado no desktop.
 - [x] Desktop reiniciado e conectado ao servidor remoto.
