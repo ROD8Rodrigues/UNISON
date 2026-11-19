@@ -451,7 +451,18 @@ function attachRealtime(server, db) {
           try {
             const call = calls.getCall(db, row.call_id);
             const updated = calls.endCall(db, row.call_id, user.id);
-            if (updated?.status === 'ended' || updated?.status === 'declined') clearCallTimer(row.call_id);
+            if (updated?.status === 'ended' || updated?.status === 'declined') {
+              clearCallTimer(row.call_id);
+            } else if (updated) {
+              const joined = updated.participants.filter(
+                (participant) => participant.status === 'joined',
+              );
+              bus.emitToUsers(
+                joined.map((participant) => participant.userId),
+                'call:participant-left',
+                { callId: row.call_id, userId: user.id, call: updated },
+              );
+            }
             const spaceId = voiceSpaceId(db, call);
             if (spaceId) bus.emitToSpace(db, spaceId, 'space:updated', { spaceId });
           } catch {

@@ -1,22 +1,56 @@
 'use strict';
 
+const fs = require('fs');
 const nodemailer = require('nodemailer');
 const config = require('../config');
 const logger = require('../logger');
 
 let transporter = null;
+let transportLabel = 'none';
+
+function sendmailAvailable() {
+  try {
+    return Boolean(config.sendmailPath) && fs.existsSync(config.sendmailPath);
+  } catch {
+    return false;
+  }
+}
 
 function getTransporter() {
-  if (!config.smtp.host) return null;
-  if (!transporter) {
+  if (transporter) return transporter;
+
+  const mode = config.mailTransport;
+  const useSendmail =
+    mode === 'sendmail' || (mode === 'auto' && !config.smtp.host && sendmailAvailable());
+  const useSmtp = mode === 'smtp' || (mode === 'auto' && Boolean(config.smtp.host));
+
+  if (useSendmail) {
+    transporter = nodemailer.createTransport({
+      sendmail: true,
+      newline: 'unix',
+      path: config.sendmailPath,
+    });
+    transportLabel = `sendmail:${config.sendmailPath}`;
+    return transporter;
+  }
+
+  if (useSmtp && config.smtp.host) {
     transporter = nodemailer.createTransport({
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.secure,
       auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
     });
+    transportLabel = `smtp:${config.smtp.host}`;
+    return transporter;
   }
-  return transporter;
+
+  return null;
+}
+
+function describeTransport() {
+  if (!getTransporter()) return 'none';
+  return transportLabel;
 }
 
 function escapeHtml(value) {
@@ -31,9 +65,9 @@ async function sendMail({ to, subject, text, html }) {
   const mailer = getTransporter();
   if (!mailer) {
     if (config.isProduction) {
-      logger.warn('Email not sent (SMTP not configured)', { to, subject });
+      logger.warn('Email not sent (no mail transport configured)', { to, subject });
     } else {
-      logger.info('Email not sent (SMTP not configured)', { to, subject, text });
+      logger.info('Email not sent (no mail transport configured)', { to, subject, text });
     }
     return { delivered: false };
   }
@@ -41,7 +75,7 @@ async function sendMail({ to, subject, text, html }) {
     await mailer.sendMail({ from: config.smtp.from, to, subject, text, html });
     return { delivered: true };
   } catch (error) {
-    logger.error('Email delivery failed', error, { to, subject });
+    logger.error('Email delivery failed', error, { to, subject, transport: transportLabel });
     return { delivered: false };
   }
 }
@@ -96,4 +130,10 @@ async function sendEmailVerification(to, username, token) {
   return { ...result, url };
 }
 
-module.exports = { sendMail, sendPasswordReset, sendEmailVerification, layout };
+module.exports = {
+  sendMail,
+  sendPasswordReset,
+  sendEmailVerification,
+  describeTransport,
+  layout,
+};

@@ -46,7 +46,7 @@ Na raiz do projeto:
 ```powershell
 cd C:\Users\Chris\Telawork
 
-# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.1.0.zip
+# gera client/dist e o pacote deploy/UNISON-alwaysdata-1.2.0.zip
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-alwaysdata.ps1
 ```
 
@@ -56,9 +56,9 @@ O script:
 - copia `server/` (sem `node_modules`, `data`, `uploads`, `.env`, testes e legado);
 - copia `client/dist/`;
 - cria `DEPLOY.txt` com o resumo;
-- gera `deploy/UNISON-alwaysdata-1.1.0.zip` e mostra o SHA-256.
+- gera `deploy/UNISON-alwaysdata-<versao>.zip` e mostra o SHA-256 (a versão padrão vem de `server/package.json`).
 
-Build atual do pacote: **0,97 MiB (1.019.282 bytes)**, SHA-256 `61a96f7ef354910c6e9b41197176eaf1a0e560d21e4abf71423e8c358039d9c4` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.1.0.zip.sha256`).
+Build atual do pacote: **0,98 MiB (1.024.151 bytes)**, SHA-256 `96875f740802dd2b9e1c9fe96979368a0e39ad6a3d745634fedc84ffda2fd74c` (o mesmo valor fica em `deploy/UNISON-alwaysdata-1.2.0.zip.sha256`).
 
 O zip deve conter, na raiz:
 
@@ -94,7 +94,7 @@ No PowerShell, na raiz do projeto:
 ssh <usuario-ssh>@ssh-<conta>.alwaysdata.net
 
 # envie o zip
-scp .\deploy\UNISON-alwaysdata-1.1.0.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
+scp .\deploy\UNISON-alwaysdata-1.2.0.zip <usuario-ssh>@ssh-<conta>.alwaysdata.net:~/
 ```
 
 Se preferir interface gráfica, use WinSCP/FileZilla no mesmo host e porta 22, modo SFTP.
@@ -104,14 +104,14 @@ No servidor:
 ```bash
 mkdir -p ~/unison
 cd ~/unison
-unzip ~/UNISON-alwaysdata-1.1.0.zip
+unzip ~/UNISON-alwaysdata-1.2.0.zip
 ls -la
 ```
 
 Se `unzip` não estiver disponível, extraia pelo gerenciador de arquivos da alwaysdata ou use:
 
 ```bash
-python3 -m zipfile -e ~/UNISON-alwaysdata-1.1.0.zip ~/unison
+python3 -m zipfile -e ~/UNISON-alwaysdata-1.2.0.zip ~/unison
 ```
 
 A estrutura final precisa ser:
@@ -194,11 +194,20 @@ chmod 600 .env
 
 Nesse caso, ajuste os valores no `.env` e **não defina `PORT`**; a alwaysdata injeta a porta correta. O `dotenv` não sobrescreve variáveis já definidas pelo ambiente do site, então as variáveis do painel têm prioridade.
 
-### SMTP (opcional)
+### Email (SMTP ou sendmail)
 
-Sem SMTP, o cadastro e o login funcionam, mas os links de verificação de email e recuperação de senha ficam no log do servidor. Para enviar emails de verdade, configure:
+Sem transporte de email, o cadastro e o login funcionam, mas os links de verificação e recuperação de senha ficam no log do servidor. A partir da 1.2.0, o transporte `auto` usa SMTP quando `SMTP_HOST` está definido e, caso contrário, o binário local `sendmail` (disponível na alwaysdata em `/usr/sbin/sendmail`, apontando para `msmtp`).
 
 ```dotenv
+MAIL_TRANSPORT=sendmail
+SENDMAIL_PATH=/usr/sbin/sendmail
+MAIL_FROM="UNISON <no-reply@<conta>.alwaysdata.net>"
+```
+
+Alternativa com SMTP:
+
+```dotenv
+MAIL_TRANSPORT=smtp
 SMTP_HOST=...
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -207,7 +216,7 @@ SMTP_PASS=...
 MAIL_FROM="UNISON <no-reply@<conta>.alwaysdata.net>"
 ```
 
-Use um provedor SMTP confiável e configure SPF/DKIM/DMARC se for usar um domínio próprio de email. A alwaysdata oferece caixas de email; consulte o painel para o host SMTP correto da sua conta.
+O envio de teste via `/usr/sbin/sendmail` retornou `250 OK` em 18/11/2026. Isso confirma que o binário aceita a mensagem, mas **não** confirma entrega em Gmail/Outlook nem reputação/SPF do subdomínio. Use um provedor SMTP confiável e configure SPF/DKIM/DMARC se for usar um domínio próprio de email; a alwaysdata oferece caixas de email e o host SMTP correspondente no painel.
 
 ## Passo 7 — Ativar HTTPS
 
@@ -225,7 +234,7 @@ curl -fsS https://<conta>.alwaysdata.net/health
 Resposta esperada:
 
 ```json
-{"status":"ok","service":"unison-server","version":"1.0.0","database":"ok","timestamp":"..."}
+{"status":"ok","service":"unison-server","version":"1.2.0","database":"ok","timestamp":"..."}
 ```
 
 Se retornar 502/503, veja os logs do site no painel e confira o comando, o diretório de trabalho, a versão do Node e o `npm ci`.
@@ -419,16 +428,18 @@ O pacote de deploy, a estrutura `server/ + client/dist/` e o servidor em `NODE_E
 
 **Atualização 1.1.0 (18/11/2026):** o pacote `UNISON-alwaysdata-1.1.0.zip` foi enviado, o backup `~/backups/unison-20261118-204148.tgz` foi criado e `client/dist` e `server/src` foram trocados preservando `.env`, `data/` e `uploads/`. A migration `003_voice_channels.sql` está presente. A raiz serve `assets/index-1x31jT62.js` e `assets/index-VaZnam-b.css` (HTTP 200). O site Node.js **ainda precisa ser reiniciado no painel** para carregar o backend 1.1.0; até lá, `/health` responde `version: 1.0.0` e as rotas de voz/convite personalizado do backend novo ainda não estão ativas.
 
+**Atualização 1.2.0 (19/11/2026):** o pacote `UNISON-alwaysdata-1.2.0.zip` foi enviado, o backup `~/backups/unison-20261119-015244.tgz` foi criado e `client/dist`, `server/src`, `server/package.json`, `server/package-lock.json`, `server/index.js` e `server/.env.example` foram trocados preservando `.env`, `data/`, `uploads/` e `node_modules/`. O `.env` remoto recebeu `MAIL_TRANSPORT=sendmail`, `SENDMAIL_PATH=/usr/sbin/sendmail` e `MAIL_FROM=UNISON <no-reply@telawork.alwaysdata.net>`. A raiz serve `assets/index-BPx4Ru7T.js` e `assets/index-D88E7iwP.css` (HTTP 200). O site Node.js **ainda precisa ser reiniciado no painel** para carregar o backend 1.2.0; até lá, `/health` responde `version: 1.0.0`, o widget/HUD do frontend novo já é servido, mas as rotas e o transporte de email novos do backend ainda não estão ativos.
+
 **Pendências reais:**
 
-- Reiniciar o site Node.js no painel da alwaysdata para ativar o backend 1.1.0 e confirmar `version: 1.1.0` em `/health`.
+- Reiniciar o site Node.js no painel da alwaysdata para ativar o backend 1.2.0 e confirmar `version: 1.2.0` em `/health`.
 - O campo **Working directory** do site está com o caminho duplicado (`/home/telawork/home/telawork/unison/server`). O site está funcionando por um symlink temporário criado em `~/home/telawork/unison/server`. Corrija o campo para `unison/server` e depois remova o symlink.
 - **Force HTTPS** ainda não está ativado: `http://telawork.alwaysdata.net/health` responde `200` em vez de redirecionar. Ative em **Web → Sites → Modificar site → SSL → Force HTTPS**.
 - A sinalização de chamadas foi validada, mas **mídia real** (câmera/microfone, duas máquinas, NAT) e canais de voz com duas contas ainda não foram testados.
-- SMTP não configurado: emails de verificação/recuperação ficam apenas no log do servidor.
+- O `sendmail` local aceitou uma mensagem (`250 OK`), mas a entrega real em Gmail/Outlook e o SPF do subdomínio ainda não foram validados.
 - Backup externo e teste com duas máquinas ainda pendentes.
 
-O GitHub também está publicado: código em `main` e release [v1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.1.0) com instalador, portátil e checksums. As releases [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) e [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanecem disponíveis para rollback.
+O GitHub também está publicado: código em `main` e release [v1.2.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.2.0) com instalador, portátil e checksums. As releases [v1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.1.0), [v1.0.1](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.1) e [v1.0.0](https://github.com/ROD8Rodrigues/UNISON/releases/tag/v1.0.0) permanecem disponíveis para rollback.
 
 ### Chave SSH de deploy
 
@@ -475,8 +486,12 @@ Nunca envie a senha em arquivos, issues ou commits.
 - [ ] Chamada real com câmera/microfone validada.
 - [x] Captura de tela com áudio loopback confirmada no smoke do desktop 1.1.0.
 - [x] Pacote 1.1.0 enviado e `client/dist`/`server/src` atualizados em 18/11/2026.
-- [ ] Site Node.js reiniciado para carregar o backend 1.1.0 (`/health` com `version: 1.1.0`).
-- [ ] Canais de voz e convite personalizado validados em produção com duas contas.
+- [x] Pacote 1.2.0 enviado e `client/dist`/`server/src`/`package.json` atualizados em 19/11/2026, com backup `unison-20261119-015244.tgz`.
+- [x] `.env` remoto com `MAIL_TRANSPORT=sendmail`, `SENDMAIL_PATH=/usr/sbin/sendmail` e `MAIL_FROM` da conta.
+- [x] `sendmail` local aceitou mensagem de teste (`250 OK`).
+- [ ] Site Node.js reiniciado para carregar o backend 1.2.0 (`/health` com `version: 1.2.0`).
+- [ ] Entrega real de email em Gmail/Outlook validada após o restart.
+- [ ] Canais de voz, dock/HUD e convite personalizado validados em produção com duas contas.
 - [x] `serverUrl` configurado no desktop.
 - [x] Desktop reiniciado e conectado ao servidor remoto.
 - [ ] Duas máquinas conectadas à mesma conta.

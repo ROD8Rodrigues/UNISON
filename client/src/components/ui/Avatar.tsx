@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { resolveMediaUrl } from '../../lib/api';
 import { classNames, initials, presenceColor } from '../../lib/utils';
 import type { Presence } from '../../lib/types';
 
@@ -40,12 +41,17 @@ export function Avatar({
 }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const [background, color] = paletteFor(name || '?');
+  const source = resolveMediaUrl(src || '');
   const style = {
     '--avatar-size': `${size}px`,
     '--avatar-bg': background,
     '--avatar-color': color,
   } as CSSProperties;
-  const showImage = src && !failed;
+  const showImage = Boolean(source) && !failed;
+
+  useEffect(() => {
+    setFailed(false);
+  }, [source]);
 
   return (
     <span
@@ -54,9 +60,13 @@ export function Avatar({
       title={name}
     >
       {showImage ? (
-        <img src={src} alt={name} onError={() => setFailed(true)} draggable={false} />
+        <span className="avatar-media">
+          <img src={source} alt={name} onError={() => setFailed(true)} draggable={false} />
+        </span>
       ) : (
-        <span aria-hidden="true">{initials(name)}</span>
+        <span className="avatar-initials" aria-hidden="true">
+          {initials(name)}
+        </span>
       )}
       {presence && (
         <span

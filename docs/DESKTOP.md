@@ -6,28 +6,28 @@ O UNISON é distribuído para Windows x64 como aplicativo Electron com o backend
 
 ## Artefatos gerados
 
-Versão **1.1.0**, em `desktop/release/`:
+Versão **1.2.0**, em `desktop/release/`:
 
 | Arquivo | Tamanho | Finalidade |
 | --- | --- | --- |
-| `UNISON-Setup-1.1.0.exe` | 112,99 MiB (118.480.712 bytes) | Instalador NSIS por usuário, com atalhos e desinstalador |
-| `UNISON-Portable-1.1.0.exe` | 101,05 MiB (105.956.579 bytes) | Executável portátil, sem instalação |
+| `UNISON-Setup-1.2.0.exe` | 113,00 MiB (118.490.647 bytes) | Instalador NSIS por usuário, com atalhos e desinstalador |
+| `UNISON-Portable-1.2.0.exe` | 101,06 MiB (105.968.395 bytes) | Executável portátil, sem instalação |
 | `win-unpacked/UNISON.exe` | — | Build não instalado, usado em testes e diagnóstico |
 | `SHA256SUMS.txt` | 183 bytes | Checksums SHA-256 dos dois `.exe` |
 
-Checksums da versão 1.1.0:
+Checksums da versão 1.2.0:
 
 ```text
-ffac10ae75b31da3742b6329280adf5cad4bcdecd587ec4865f1df080fdf5fef  UNISON-Setup-1.1.0.exe
-9f43e8e0f596116fa1dbddb2fd6a27b011bc6b0c32294f43c85344967ac5ff4a  UNISON-Portable-1.1.0.exe
+a644ec21199a719be2fb8a42e7049e3df64c2f021c8bd59f0420dbd2e612d311  UNISON-Setup-1.2.0.exe
+852f826b64fb0cc739ec278adb5c07bd0aa9865d7c693845b6be1540a18fc957  UNISON-Portable-1.2.0.exe
 ```
 
 Confira no Windows:
 
 ```powershell
-Get-FileHash .\UNISON-Setup-1.1.0.exe -Algorithm SHA256
+Get-FileHash .\UNISON-Setup-1.2.0.exe -Algorithm SHA256
 # ou
-certutil -hashfile .\UNISON-Setup-1.1.0.exe SHA256
+certutil -hashfile .\UNISON-Setup-1.2.0.exe SHA256
 ```
 
 Os hashes mudam a cada rebuild, mesmo com o mesmo código. Gere novamente o `SHA256SUMS.txt` após qualquer nova compilação.
@@ -38,14 +38,14 @@ O build instalado ocupa aproximadamente **328 MB** em disco (`win-unpacked`). O 
 
 ### Instalador
 
-1. Execute `UNISON-Setup-1.1.0.exe`.
+1. Execute `UNISON-Setup-1.2.0.exe`.
 2. Escolha a pasta (a instalação padrão é por usuário, sem exigir administrador).
 3. O instalador cria atalhos na área de trabalho e no menu Iniciar e abre o aplicativo ao final.
 
 Instalação silenciosa, útil em implantação:
 
 ```powershell
-.\UNISON-Setup-1.1.0.exe /S /D=C:\UNISON
+.\UNISON-Setup-1.2.0.exe /S /D=C:\UNISON
 ```
 
 O parâmetro `/D` deve ser o último e não é obrigatório. Para desinstalar:
@@ -58,13 +58,13 @@ Também é possível desinstalar por **Configurações → Aplicativos → UNISO
 
 ### Portátil
 
-Execute `UNISON-Portable-1.1.0.exe` diretamente. Ele se extrai para uma pasta temporária a cada inicialização, então o primeiro início é mais lento que o do aplicativo instalado. Não cria atalhos e não requer instalação.
+Execute `UNISON-Portable-1.2.0.exe` diretamente. Ele se extrai para uma pasta temporária a cada inicialização, então o primeiro início é mais lento que o do aplicativo instalado. Não cria atalhos e não requer instalação.
 
 O portátil **não é portátil em dados**: assim como o instalado, ele grava o banco e os uploads em `%APPDATA%\UNISON`. Para levar os dados em uma pasta removível, defina `UNISON_USER_DATA` antes de abrir:
 
 ```powershell
 $env:UNISON_USER_DATA = 'E:\UNISONData'
-.\UNISON-Portable-1.1.0.exe
+.\UNISON-Portable-1.2.0.exe
 ```
 
 Isso não criptografa os dados. Use apenas em mídia confiável.
@@ -304,8 +304,8 @@ Data: **18/11/2026** (horário local), Windows 10 22H2 x64.
 | `client`: lint + typecheck + 13 testes + build | ✅ |
 | `desktop`: `npm run check` | ✅ |
 | Smoke em Electron de desenvolvimento | ✅ |
-| Smoke no `win-unpacked` 1.1.0 | ✅ |
-| Smoke no portátil 1.1.0 | ✅ |
+| Smoke no `win-unpacked` 1.2.0 (inclui voz/HUD) | ✅ `hudVisible`, `alwaysOnTop`, passivo `focusable:false`, interativo `focusable:true`, mute e saída |
+| Smoke no portátil 1.2.0 (inclui voz/HUD) | ✅ mesmos controles do `win-unpacked` |
 | Instalação silenciosa + smoke do app instalado (1.0.0) | ✅ execução anterior |
 | Migração automática de `%APPDATA%\Telawork` | ✅ banco, config e uploads copiados sem alterar a pasta antiga |
 | Migração 002 (`#C5F812` → `#C9A0DC`) | ✅ accent e cor de papel convertidos |
@@ -313,8 +313,8 @@ Data: **18/11/2026** (horário local), Windows 10 22H2 x64.
 | Desinstalação silenciosa | ✅ pasta e atalhos removidos |
 | Smoke remoto (`http://127.0.0.1:60000`) | ✅ interface + `/health`; config com BOM aceito |
 | Captura real da tela de login | ✅ conferida visualmente |
-| Captura de tela com áudio loopback (1.1.0) | ✅ `win-unpacked` e portátil: 1 faixa de vídeo + 1 faixa `System audio` |
-| Canais de voz no `win-unpacked` 1.1.0 | ✅ UI carregada; entrada em canal depende de duas contas reais |
+| Captura de tela com áudio loopback (1.2.0) | ✅ `win-unpacked` e portátil: 1 faixa de vídeo + 1 faixa `System audio` |
+| Canais de voz no `win-unpacked` e portátil 1.2.0 | ✅ dock, expansão, recolhimento, HUD ao minimizar, mute e saída; áudio entre duas contas reais ainda pendente |
 | `npm audit` | ⚠️ `server --omit=dev`: 0; `client`/`desktop`: advisory dev-only de `picomatch` sem patch |
 | Assinatura Authenticode | ❌ `NotSigned` (sem certificado) |
 | Windows 11, ARM64, macOS e Linux | ❌ não testados |
@@ -329,11 +329,12 @@ O teste de duas inicializações confirmou que o banco SQLite e o segredo JWT n�
 - **Sem auto-update:** cada versão precisa ser baixada e instalada manualmente. Não há canal beta, rollback ou verificação criptográfica de update.
 - **Modo local é isolado:** contas e conversas existem apenas naquela máquina. Para multiusuário real, use um servidor remoto.
 - **Modo remoto sem fallback:** se o servidor cair, o app não usa o banco local. Não há modo offline nem sincronização.
-- **Email local limitado:** sem SMTP, verificação e reset não são entregues; com SMTP, links usam porta aleatória e podem expirar ao reiniciar.
+- **Email local limitado:** sem SMTP/sendmail, verificação e reset não são entregues; com SMTP, links usam porta aleatória e podem expirar ao reiniciar. O `sendmail` é voltado a hospedagens Linux (alwaysdata), não ao app Windows.
 - **Dados sem criptografia:** banco, uploads e segredo JWT ficam legíveis no perfil. Não há E2E.
 - **Um único processo:** sem suporte a múltiplas instâncias sobre o mesmo SQLite.
-- **Mídia real parcialmente validada no desktop:** o smoke do 1.1.0 confirmou captura de tela com faixa de áudio loopback (`System audio`). Permissões de câmera/microfone, chamadas com dois dispositivos, canais de voz com duas contas e o áudio efetivamente ouvido pelo outro participante ainda não foram exercitados dentro do Electron.
-- **Notificações nativas não validadas:** a permissão é concedida, mas o comportamento no Windows e com o app fechado não foi testado.
+- **Mídia real parcialmente validada no desktop:** o smoke 1.2.0 confirmou captura de tela com faixa de áudio loopback (`System audio`), dock/expansão/recolhimento e HUD com dispositivo de mídia falso. Permissões de câmera/microfone, chamadas com dois dispositivos, canais de voz com duas contas e o áudio efetivamente ouvido pelo outro participante ainda não foram exercitados dentro do Electron.
+- **HUD em fullscreen exclusivo:** o overlay é always-on-top e click-through, mas jogos em fullscreen exclusivo podem ficar por cima. Use modo janela/borderless. A interação exige `Ctrl+Shift+U` (ou fixar o widget); o PiP do navegador não é click-through.
+- **Notificações nativas não validadas:** a permissão é concedida, o botão **Testar notificação** existe, mas o comportamento visual no Windows e com o app fechado não foi testado.
 - **Sem teste em Windows 11/ARM64:** compatibilidade esperada, não comprovada.
 - **Instalador NSIS sem testes de upgrade:** instalar por cima deve preservar dados, mas o cenário de downgrade/upgrade não foi automatizado.
 

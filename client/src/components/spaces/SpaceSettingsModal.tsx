@@ -1204,23 +1204,7 @@ export function SpaceSettingsModal({
                       </div>
                     </div>
                   </label>
-                  <div className="role-editor-actions">
-                    {roleDraft.id && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={startCreateRole}>
-                        Cancelar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => void saveRole()}
-                      disabled={busy === 'role' || roleDraft.name.trim().length === 0}
-                    >
-                      {busy === 'role' ? <Spinner size={15} /> : <Save size={15} />}
-                      {roleDraft.id ? 'Salvar cargo' : 'Criar cargo'}
-                    </button>
-                  </div>
-                  <div className="field">
+                  <div className="field permission-field">
                     <span>Permissões</span>
                     <div className="permission-list">
                       {PERMISSION_OPTIONS.map((option) => (
@@ -1239,6 +1223,22 @@ export function SpaceSettingsModal({
                     </div>
                   </div>
                   {roleError && <div className="form-error">{roleError}</div>}
+                  <div className="role-editor-actions">
+                    {roleDraft.id && (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={startCreateRole}>
+                        Cancelar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => void saveRole()}
+                      disabled={busy === 'role' || roleDraft.name.trim().length === 0}
+                    >
+                      {busy === 'role' ? <Spinner size={15} /> : <Save size={15} />}
+                      {roleDraft.id ? 'Salvar cargo' : 'Criar cargo'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>

@@ -8,6 +8,7 @@ const logger = require('./logger');
 const { openDatabase } = require('./db');
 const { createApp } = require('./app');
 const { attachRealtime } = require('./realtime');
+const mailer = require('./services/mailer');
 
 function cleanupOrphanUploads(db) {
   try {
@@ -48,6 +49,7 @@ function main() {
       env: config.env,
       database: config.databasePath,
       appUrl: config.appUrl,
+      mail: mailer.describeTransport(),
     });
   });
 

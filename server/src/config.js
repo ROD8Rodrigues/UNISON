@@ -41,6 +41,8 @@ const config = {
   appUrl: process.env.APP_URL || 'http://localhost:5173',
   uploadDir: path.resolve(root, process.env.UPLOAD_DIR || './uploads'),
   maxUploadBytes: Number(process.env.MAX_UPLOAD_MB || 25) * 1024 * 1024,
+  mailTransport: (process.env.MAIL_TRANSPORT || 'auto').toLowerCase(),
+  sendmailPath: process.env.SENDMAIL_PATH || '/usr/sbin/sendmail',
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT || 587),

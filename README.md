@@ -8,7 +8,7 @@ Este repositório contém a reconstrução de produção do protótipo original:
 
 ## Download
 
-- **Windows x64:** [UNISON 1.1.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.1.0.exe`) e portátil (`UNISON-Portable-1.1.0.exe`), com `SHA256SUMS.txt`.
+- **Windows x64:** [UNISON 1.2.0](https://github.com/ROD8Rodrigues/UNISON/releases/latest) — instalador (`UNISON-Setup-1.2.0.exe`) e portátil (`UNISON-Portable-1.2.0.exe`), com `SHA256SUMS.txt`.
 - **Código-fonte:** [github.com/ROD8Rodrigues/UNISON](https://github.com/ROD8Rodrigues/UNISON).
 - **Web/PWA:** [telawork.alwaysdata.net](https://telawork.alwaysdata.net) — servidor multiusuário online. O Force HTTPS do painel ainda está pendente; use sempre o link `https://`.
 
@@ -19,12 +19,12 @@ Os executáveis não têm assinatura Authenticode; o SmartScreen pode exibir um 
 - **Backend:** API REST + Socket.IO implementados, com autenticação, sessões, mensagens, comunidades, moderação, uploads, notificações e chamadas.
 - **Frontend:** aplicação React completa, responsiva, com tema escuro/neon, PWA e fluxos reais ligados à API.
 - **Aplicativo Windows:** instalador NSIS e executável portátil x64 com Electron, backend e SQLite embutidos; dados em `%APPDATA%\UNISON`; modo local isolado e modo servidor remoto opcional.
-- **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O bundle web e os arquivos do servidor **1.1.0** já foram publicados; o processo Node.js precisa ser reiniciado no painel da alwaysdata para carregar o backend novo (até lá, `/health` responde `1.0.0`). O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
-- **Chamadas e voz (1.1.0):** compartilhamento de tela com áudio e loopback no Electron; janela da chamada flutuante e minimizável; canais de voz permanentes com presença de participantes, entrada sem tocar e o mesmo mesh WebRTC das chamadas. Também entraram o link de convite personalizado, o editor de cargos reorganizado e os toggles de privacidade corrigidos. A validação com áudio real entre dois dispositivos e redes distintas ainda está pendente.
+- **Servidor público:** backend online em [telawork.alwaysdata.net](https://telawork.alwaysdata.net) (alwaysdata Free, Node.js 24, SQLite), com registro, login, mensagens, uploads e sinalização de chamadas validados por smoke test remoto. O bundle web e os arquivos do servidor **1.2.0** já foram publicados; o processo Node.js precisa ser reiniciado no painel da alwaysdata para carregar o backend novo (até lá, `/health` responde `1.0.0`). O redirecionamento forçado de HTTP para HTTPS ainda precisa ser ativado no painel.
+- **Chamadas e voz (1.2.0):** canais de voz abrem em um **widget compacto** no canto da tela, com participantes, microfone, tela e sair; a janela grande continua disponível ao expandir. No aplicativo Windows, minimizar ou tirar o foco abre um **HUD transparente, sempre no topo e click-through** (o mouse atravessa), com `Ctrl+Shift+U` para interagir sem sair do jogo. No navegador, o botão de flutuar usa Document Picture-in-Picture. A recuperação de microfone foi reforçada contra track encerrada, troca de dispositivo e queda de conexão. Também entraram avatar sem distorção, editor de cargos com ações sempre visíveis, botão de teste de notificação e transporte de email por `sendmail` na alwaysdata. A validação com áudio real entre dois dispositivos e redes distintas ainda está pendente.
 - **Testes automatizados:** 17 testes de API/realtime no servidor e 13 testes de frontend, todos passando.
 - **Qualidade:** lint e typecheck limpos nos dois projetos; build de produção concluído; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O cliente e o desktop reportam um advisory **dev-only** de `picomatch` (ReDoS, CVE-2026-112366) sem versão corrigida publicada; o pacote não entra no runtime do servidor nem nos `.exe`.
 - **Smoke test de produção:** SPA, service worker, manifest, cache de assets, Cookie de refresh seguro, registro/login e 404 JSON validados.
-- **Smoke test do desktop:** build empacotado, portátil e instalado 1.0.0 validados com interface real, registro, sessão, refresh cookie e captura de tela. Em 1.0.1 e 1.1.0, o smoke test do `win-unpacked` e do portátil confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio (`System audio`, loopback). O modo remoto foi testado contra backend local.
+- **Smoke test do desktop:** build empacotado, portátil e instalado 1.0.0 validados com interface real, registro, sessão, refresh cookie e captura de tela. Em 1.0.1 e 1.1.0, o smoke test do `win-unpacked` e do portátil confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio (`System audio`, loopback). Em 1.2.0, o `smoke:voice` cobre entrar no canal, dock, expansão, recolhimento, HUD ao minimizar, mute e saída pelo próprio HUD. O modo remoto foi testado contra backend local.
 
 O escopo validado neste ambiente, as limitações reais e o que depende de infraestrutura externa estão detalhados em [Limitações conhecidas](docs/KNOWN_LIMITATIONS.md).
 
@@ -35,8 +35,8 @@ O escopo validado neste ambiente, as limitações reais e o que depende de infra
 - Sessões por dispositivo com lista, revogação individual e revogação das outras sessões.
 - Access token JWT curto (15 min) e refresh token opaco com rotação (30 dias).
 - Troca de senha, redefinição por email e verificação de email com tokens de uso único.
-- Perfil, bio, status personalizado, avatar, banner, presença e exclusão de conta.
-- Bloqueio de usuários, configurações de privacidade e preferências de notificação.
+- Perfil, bio, status personalizado, avatar (recorte circular sem distorção), banner, presença e exclusão de conta.
+- Bloqueio de usuários, configurações de privacidade e preferências de notificação, com botão **Testar notificação** que usa o som atual.
 
 ### Conversas
 - Mensagens diretas e grupos.
@@ -58,9 +58,12 @@ O escopo validado neste ambiente, as limitações reais e o que depende de infra
 ### Chamadas
 - Chamadas de áudio e vídeo em DMs, grupos e canais de voz, até 9 participantes.
 - Canais de voz: entrar/sair sem convite, presença ao vivo na sidebar e no canal.
+- Widget compacto de voz com participantes, mute, compartilhamento de tela, expandir e sair; a janela grande é aberta sob demanda.
+- HUD flutuante no desktop: transparente, sempre no topo e click-through, com atalho global `Ctrl+Shift+U` para alternar a interação.
+- Flutuação no navegador via Document Picture-in-Picture (quando suportado).
 - Compartilhamento de tela, mudo, câmera e estado de mídia por participante.
 - Sinalização WebRTC via Socket.IO com STUN público padrão e TURN opcional por variáveis de ambiente.
-- Reconexão de socket e `restartIce` para recuperação de conexão.
+- Reconexão de socket, `restartIce`, recuperação de microfone, troca de dispositivo de áudio e saída de participante em desconexão.
 
 > A sinalização e o ciclo de chamada são cobertos por testes automatizados. A validação com mídia real (duas câmeras/microfones e redes distintas) depende de dispositivos e infraestrutura externa e está descrita nas limitações.
 
@@ -79,7 +82,7 @@ O escopo validado neste ambiente, as limitações reais e o que depende de infra
 | Autenticação | bcryptjs (cost 12), JWT, refresh token opaco com hash SHA-256 |
 | Validação | Zod 4 |
 | Upload | Multer 2 com allowlist de MIME e limite de tamanho |
-| Email | Nodemailer 10 (SMTP opcional) |
+| Email | Nodemailer 10 (SMTP ou `sendmail` local, configurável) |
 | Frontend | React 19, TypeScript 5.9, Vite 8, React Router 7, Zustand 5 |
 | Desktop | Electron 45.3.3, electron-builder 26.18.0 (Windows x64) |
 | Estilo | CSS próprio com design tokens |
@@ -115,7 +118,7 @@ Abra `http://localhost:5173`. O Vite faz proxy de `/api`, `/uploads` e `/socket.
 
 ### 3. Primeira conta
 
-Crie uma conta pela tela de registro. Com SMTP desconfigurado, o link de verificação é gravado no log do servidor e, em desenvolvimento, o token também pode ser exposto pela API (`EXPOSE_DEV_TOKENS=true`). Em produção essa exposição é sempre desativada.
+Crie uma conta pela tela de registro. Com SMTP e `sendmail` desconfigurados, o link de verificação é gravado no log do servidor e, em desenvolvimento, o token também pode ser exposto pela API (`EXPOSE_DEV_TOKENS=true`). Em produção essa exposição é sempre desativada. O transporte `auto` usa SMTP quando `SMTP_HOST` está definido e, sem ele, tenta o `sendmail` local (`/usr/sbin/sendmail` por padrão); use `MAIL_TRANSPORT=sendmail` para forçar.
 
 ## Produção
 
@@ -147,18 +150,18 @@ Checklist completo, proxy reverso, TLS, systemd, SMTP, TURN e backup: [Deploy](d
 
 ## Aplicativo Windows (.exe)
 
-Artefatos da versão **1.1.0** em `desktop/release/`:
+Artefatos da versão **1.2.0** em `desktop/release/`:
 
 | Arquivo | Tamanho | Uso |
 | --- | --- | --- |
-| `UNISON-Setup-1.1.0.exe` | 112,99 MiB (118.480.712 bytes) | Instalador por usuário, com atalhos e desinstalador |
-| `UNISON-Portable-1.1.0.exe` | 101,05 MiB (105.956.579 bytes) | Executável portátil, sem instalação |
+| `UNISON-Setup-1.2.0.exe` | 113,00 MiB (118.490.647 bytes) | Instalador por usuário, com atalhos e desinstalador |
+| `UNISON-Portable-1.2.0.exe` | 101,06 MiB (105.968.395 bytes) | Executável portátil, sem instalação |
 
 Checksums SHA-256:
 
 ```text
-ffac10ae75b31da3742b6329280adf5cad4bcdecd587ec4865f1df080fdf5fef  UNISON-Setup-1.1.0.exe
-9f43e8e0f596116fa1dbddb2fd6a27b011bc6b0c32294f43c85344967ac5ff4a  UNISON-Portable-1.1.0.exe
+a644ec21199a719be2fb8a42e7049e3df64c2f021c8bd59f0420dbd2e612d311  UNISON-Setup-1.2.0.exe
+852f826b64fb0cc739ec278adb5c07bd0aa9865d7c693845b6be1540a18fc957  UNISON-Portable-1.2.0.exe
 ```
 
 - **Instalador:** execute e siga o assistente. Instala sem exigir Node.js e cria atalhos na área de trabalho e no menu Iniciar.

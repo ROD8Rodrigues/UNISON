@@ -6,6 +6,9 @@ const {
   Menu,
   desktopCapturer,
   dialog,
+  globalShortcut,
+  ipcMain,
+  screen,
   session,
   shell,
 } = require('electron');
@@ -18,7 +21,12 @@ const os = require('os');
 const path = require('path');
 
 const IS_SMOKE = process.argv.includes('--smoke-test');
+const IS_VOICE_SMOKE = IS_SMOKE && process.argv.includes('--voice-smoke');
 const IS_DEV = !app.isPackaged;
+
+if (IS_SMOKE) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+}
 
 app.setName('UNISON');
 app.setAppUserModelId('com.unison.desktop');
@@ -268,6 +276,9 @@ let serverPort = null;
 let serverExited = null;
 let mainWindow = null;
 let splashWindow = null;
+let voiceOverlayWindow = null;
+let voiceOverlayState = null;
+let voiceOverlayInteractive = false;
 let appOrigin = null;
 let shuttingDown = false;
 
@@ -603,6 +614,189 @@ function closeSplash() {
   splashWindow = null;
 }
 
+/* ---- Floating voice overlay (HUD) --------------------------------------- */
+
+function sanitizeVoiceState(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const participants = Array.isArray(raw.participants)
+    ? raw.participants
+        .filter((participant) => participant && typeof participant === 'object')
+        .slice(0, 12)
+        .map((participant) => ({
+          id: typeof participant.id === 'string' ? participant.id.slice(0, 64) : '',
+          name:
+            typeof participant.name === 'string'
+              ? participant.name.slice(0, 48)
+              : 'Participante',
+          avatarUrl:
+            typeof participant.avatarUrl === 'string' && participant.avatarUrl
+              ? participant.avatarUrl.slice(0, 2048)
+              : null,
+          muted: Boolean(participant.muted),
+        }))
+    : [];
+  return {
+    title:
+      typeof raw.title === 'string' && raw.title.trim()
+        ? raw.title.trim().slice(0, 64)
+        : 'Canal de voz',
+    channelId: typeof raw.channelId === 'string' ? raw.channelId : null,
+    startedAt: typeof raw.startedAt === 'string' ? raw.startedAt : null,
+    micEnabled: Boolean(raw.micEnabled),
+    screenSharing: Boolean(raw.screenSharing),
+    pinned: Boolean(raw.pinned),
+    participants,
+  };
+}
+
+function sendVoiceOverlayState() {
+  if (!voiceOverlayWindow || voiceOverlayWindow.isDestroyed()) return;
+  voiceOverlayWindow.webContents.send('overlay:state', voiceOverlayState);
+}
+
+function shouldShowVoiceOverlay() {
+  if (!voiceOverlayState) return false;
+  if (voiceOverlayState.pinned) return true;
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return mainWindow.isMinimized() || !mainWindow.isFocused();
+}
+
+function setVoiceOverlayInteractive(interactive) {
+  const next = Boolean(interactive);
+  if (next === voiceOverlayInteractive) {
+    if (voiceOverlayWindow && !voiceOverlayWindow.isDestroyed()) {
+      voiceOverlayWindow.webContents.send('overlay:interactive', next);
+    }
+    return;
+  }
+  voiceOverlayInteractive = next;
+  if (!voiceOverlayWindow || voiceOverlayWindow.isDestroyed()) return;
+  voiceOverlayWindow.setIgnoreMouseEvents(!next, { forward: true });
+  voiceOverlayWindow.setFocusable(next);
+  if (next) {
+    voiceOverlayWindow.show();
+    voiceOverlayWindow.focus();
+  }
+  voiceOverlayWindow.webContents.send('overlay:interactive', next);
+}
+
+function positionVoiceOverlay(win) {
+  try {
+    const reference =
+      mainWindow && !mainWindow.isDestroyed() ? mainWindow.getBounds() : null;
+    const display = reference
+      ? screen.getDisplayMatching(reference)
+      : screen.getPrimaryDisplay();
+    const area = display.workArea;
+    win.setPosition(
+      Math.round(area.x + area.width - 344),
+      Math.round(area.y + area.height - 172),
+    );
+  } catch (error) {
+    log('Could not position voice overlay', error);
+  }
+}
+
+function createVoiceOverlayWindow() {
+  if (voiceOverlayWindow && !voiceOverlayWindow.isDestroyed()) return voiceOverlayWindow;
+
+  voiceOverlayWindow = new BrowserWindow({
+    width: 330,
+    height: 158,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: false,
+    hasShadow: false,
+    show: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: path.join(__dirname, 'overlay-preload.js'),
+    },
+  });
+
+  voiceOverlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  voiceOverlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  positionVoiceOverlay(voiceOverlayWindow);
+
+  voiceOverlayWindow.webContents.on('did-finish-load', () => {
+    sendVoiceOverlayState();
+    voiceOverlayWindow.webContents.send('overlay:interactive', voiceOverlayInteractive);
+  });
+  voiceOverlayWindow.on('closed', () => {
+    voiceOverlayWindow = null;
+    voiceOverlayInteractive = false;
+  });
+  voiceOverlayWindow.loadFile(path.join(__dirname, 'overlay.html')).catch((error) => {
+    log('Could not load voice overlay', error);
+  });
+  return voiceOverlayWindow;
+}
+
+function applyVoiceOverlayVisibility() {
+  if (!shouldShowVoiceOverlay()) {
+    if (voiceOverlayWindow && !voiceOverlayWindow.isDestroyed() && voiceOverlayWindow.isVisible()) {
+      voiceOverlayWindow.hide();
+    }
+    setVoiceOverlayInteractive(false);
+    return;
+  }
+  const win = createVoiceOverlayWindow();
+  if (!win || win.isDestroyed()) return;
+  if (!win.isVisible()) {
+    positionVoiceOverlay(win);
+    win.showInactive();
+  }
+  win.setAlwaysOnTop(true, 'screen-saver');
+}
+
+ipcMain.on('voice:update', (event, raw) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return;
+  voiceOverlayState = sanitizeVoiceState(raw);
+  sendVoiceOverlayState();
+  applyVoiceOverlayVisibility();
+});
+
+ipcMain.on('voice:interactive', (event, interactive) => {
+  const fromMain =
+    mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents;
+  const fromOverlay =
+    voiceOverlayWindow &&
+    !voiceOverlayWindow.isDestroyed() &&
+    event.sender === voiceOverlayWindow.webContents;
+  if (!fromMain && !fromOverlay) return;
+  setVoiceOverlayInteractive(Boolean(interactive));
+});
+
+ipcMain.on('voice:overlay-command', (event, payload) => {
+  if (
+    !voiceOverlayWindow ||
+    voiceOverlayWindow.isDestroyed() ||
+    event.sender !== voiceOverlayWindow.webContents
+  ) {
+    return;
+  }
+  const action = payload && payload.action;
+  if (!['toggle-mic', 'leave', 'open'].includes(action)) return;
+  if (action === 'open' && mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('voice:command', { action });
+  }
+});
+
+
 function createMainWindow(origin) {
   const win = new BrowserWindow({
     width: 1440,
@@ -620,6 +814,7 @@ function createMainWindow(origin) {
       sandbox: true,
       spellcheck: true,
       backgroundThrottling: false,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -639,7 +834,16 @@ function createMainWindow(origin) {
 
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
+    if (voiceOverlayWindow && !voiceOverlayWindow.isDestroyed()) voiceOverlayWindow.close();
   });
+
+  const refreshVoiceOverlay = () => {
+    setTimeout(applyVoiceOverlayVisibility, 150);
+  };
+  win.on('minimize', refreshVoiceOverlay);
+  win.on('restore', refreshVoiceOverlay);
+  win.on('focus', refreshVoiceOverlay);
+  win.on('blur', refreshVoiceOverlay);
 
   win.webContents.on('did-finish-load', () => {
     log('Main window loaded', { url: win.webContents.getURL() });
@@ -690,6 +894,232 @@ function createMainWindow(origin) {
 
   win.loadURL(origin).catch((error) => log('loadURL failed', error));
   return { win, loaded };
+}
+
+async function waitForRenderer(win, expression, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const value = await win.webContents.executeJavaScript(
+        `(() => { try { return Boolean(${expression}); } catch (error) { return false; } })()`,
+        true,
+      );
+      if (value) return true;
+    } catch {
+      // A navigation can interrupt a check; retry until the deadline.
+    }
+    await delay(250);
+  }
+  return false;
+}
+
+async function runVoiceSmoke(win, token, suffix) {
+  const auth = { Authorization: `Bearer ${token}` };
+  const space = await httpJson(
+    serverPort,
+    'POST',
+    '/api/spaces',
+    { name: `Voz ${suffix}`, visibility: 'private' },
+    auth,
+  );
+  if (space.status !== 201 || !space.body || !space.body.space) {
+    throw new Error(`Espaço de teste falhou (HTTP ${space.status}): ${space.raw.slice(0, 300)}`);
+  }
+  const spaceId = space.body.space.id;
+  const channel = await httpJson(
+    serverPort,
+    'POST',
+    `/api/spaces/${spaceId}/channels`,
+    { name: `voz-${suffix}`, type: 'voice' },
+    auth,
+  );
+  if (channel.status !== 201 || !channel.body || !channel.body.channel) {
+    throw new Error(`Canal de voz falhou (HTTP ${channel.status}): ${channel.raw.slice(0, 300)}`);
+  }
+  const channelId = channel.body.channel.id;
+
+  await win
+    .loadURL(`${appOrigin}/app/spaces/${spaceId}/channels/${channelId}`)
+    .catch(() => undefined);
+
+  const joinReady = await waitForRenderer(
+    win,
+    `Array.from(document.querySelectorAll('button')).some((button) => /Entrar no canal de voz/i.test(button.textContent || ''))`,
+    25000,
+  );
+  if (!joinReady) throw new Error('O botão de entrar no canal de voz não apareceu');
+
+  await win.webContents.executeJavaScript(
+    `Array.from(document.querySelectorAll('button')).find((button) => /Entrar no canal de voz/i.test(button.textContent || '')).click()`,
+    true,
+  );
+
+  const dockReady = await waitForRenderer(
+    win,
+    `Boolean(document.querySelector('.voice-dock'))`,
+    20000,
+  );
+  if (!dockReady) throw new Error('O widget compacto de voz não apareceu');
+
+  await delay(900);
+  const collapsed = await win.webContents.executeJavaScript(
+    `({
+      title: (document.querySelector('.voice-dock-title') || {}).textContent || '',
+      participants: document.querySelectorAll('.voice-dock-person').length,
+      controls: Array.from(document.querySelectorAll('.voice-dock-control')).map((button) => (button.textContent || '').trim()),
+    })`,
+    true,
+  );
+
+  let screenshotBytes = 0;
+  let expandedScreenshotBytes = 0;
+  try {
+    win.setOpacity(0);
+    win.showInactive();
+    await delay(500);
+    const shot = await win.webContents.capturePage();
+    const png = shot.toPNG();
+    screenshotBytes = png.length;
+    fs.writeFileSync(path.join(USER_DATA, 'voice-dock.png'), png);
+  } catch (error) {
+    log('Voice dock screenshot failed', error);
+  }
+
+  await win.webContents.executeJavaScript(
+    `document.querySelector('.voice-dock-head-actions button:last-child')?.click()`,
+    true,
+  );
+  const expanded = await waitForRenderer(
+    win,
+    `Boolean(document.querySelector('.voice-window'))`,
+    10000,
+  );
+  if (!expanded) throw new Error('A janela expandida do canal de voz não apareceu');
+
+  try {
+    await delay(600);
+    const shot = await win.webContents.capturePage();
+    const png = shot.toPNG();
+    expandedScreenshotBytes = png.length;
+    fs.writeFileSync(path.join(USER_DATA, 'voice-window.png'), png);
+  } catch (error) {
+    log('Voice window screenshot failed', error);
+  }
+
+  await win.webContents.executeJavaScript(
+    `document.querySelector('.call-window-toggle')?.click()`,
+    true,
+  );
+  await delay(650);
+  const afterCollapse = await win.webContents.executeJavaScript(
+    `({
+      windowOpen: Boolean(document.querySelector('.voice-window')),
+      dockOpen: Boolean(document.querySelector('.voice-dock')),
+      fatal: Boolean(document.querySelector('.fatal-screen')),
+    })`,
+    true,
+  );
+  const collapsedAgain = await waitForRenderer(
+    win,
+    `Boolean(document.querySelector('.voice-dock'))`,
+    10000,
+  );
+  if (!collapsedAgain) {
+    throw new Error(`O widget não voltou ao recolher a janela: ${JSON.stringify(afterCollapse)}`);
+  }
+
+  await win.minimize();
+  let overlayShown = false;
+  const overlayDeadline = Date.now() + 10000;
+  while (Date.now() < overlayDeadline) {
+    if (voiceOverlayWindow && !voiceOverlayWindow.isDestroyed() && voiceOverlayWindow.isVisible()) {
+      overlayShown = true;
+      break;
+    }
+    await delay(200);
+  }
+  if (!overlayShown) throw new Error('O overlay flutuante não apareceu ao minimizar o app');
+
+  await delay(500);
+  const overlayWindowState = {
+    visible: voiceOverlayWindow.isVisible(),
+    alwaysOnTop: voiceOverlayWindow.isAlwaysOnTop(),
+    focusable: voiceOverlayWindow.isFocusable(),
+    bounds: voiceOverlayWindow.getBounds(),
+  };
+
+  let overlayScreenshotBytes = 0;
+  try {
+    const shot = await voiceOverlayWindow.webContents.capturePage();
+    const png = shot.toPNG();
+    overlayScreenshotBytes = png.length;
+    fs.writeFileSync(path.join(USER_DATA, 'voice-overlay.png'), png);
+  } catch (error) {
+    log('Voice overlay screenshot failed', error);
+  }
+
+  setVoiceOverlayInteractive(true);
+  await delay(650);
+  const interactiveState = {
+    focusable: voiceOverlayWindow.isFocusable(),
+    bodyInteractive: await voiceOverlayWindow.webContents.executeJavaScript(
+      `document.body.classList.contains('interactive')`,
+      true,
+    ),
+  };
+  if (!interactiveState.focusable || !interactiveState.bodyInteractive) {
+    throw new Error(`O HUD não entrou no modo interativo: ${JSON.stringify(interactiveState)}`);
+  }
+
+  await voiceOverlayWindow.webContents.executeJavaScript(
+    `Array.from(document.querySelectorAll('.hud-btn')).find((button) => /Mic|Mudo/.test(button.textContent || ''))?.click()`,
+    true,
+  );
+  await delay(1400);
+  const overlayMicText = await voiceOverlayWindow.webContents.executeJavaScript(
+    `(document.querySelector('.hud-btn.off') || {}).textContent || ''`,
+    true,
+  );
+  if (!/Mudo/i.test(overlayMicText)) {
+    throw new Error(`O botão de microfone do overlay não mudou: ${JSON.stringify(overlayMicText)}`);
+  }
+
+  await voiceOverlayWindow.webContents.executeJavaScript(
+    `document.querySelector('.hud-btn.leave')?.click()`,
+    true,
+  );
+  const overlayHidden = await (async () => {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      if (!voiceOverlayWindow || voiceOverlayWindow.isDestroyed() || !voiceOverlayWindow.isVisible()) {
+        return true;
+      }
+      await delay(200);
+    }
+    return false;
+  })();
+  if (!overlayHidden) throw new Error('O overlay não sumiu ao sair pelo HUD');
+
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  await delay(500);
+
+  const left = await waitForRenderer(win, `!document.querySelector('.voice-dock')`, 15000);
+  if (!left) throw new Error('O widget não sumiu ao sair do canal de voz');
+
+  return {
+    spaceId,
+    channelId,
+    collapsed,
+    expanded: true,
+    left: true,
+    screenshotBytes,
+    expandedScreenshotBytes,
+    overlayWindowState,
+    interactiveState,
+    overlayScreenshotBytes,
+  };
 }
 
 async function runSmokeTest(win, origin) {
@@ -850,6 +1280,7 @@ async function runSmokeTest(win, origin) {
         refreshStatus: refresh.status,
         meStatus: me.status,
         userId: profile && profile.user ? profile.user.id : null,
+        accessToken: token,
       };
     })()`,
     true,
@@ -872,6 +1303,11 @@ async function runSmokeTest(win, origin) {
     throw new Error(
       `Cookie de refresh inesperado: ${JSON.stringify(refreshCookie || null)}`,
     );
+  }
+
+  let voice = null;
+  if (IS_VOICE_SMOKE) {
+    voice = await runVoiceSmoke(win, cookieTest.accessToken, suffix);
   }
 
   return {
@@ -898,6 +1334,7 @@ async function runSmokeTest(win, origin) {
       sameSite: refreshCookie.sameSite,
       path: refreshCookie.path,
     },
+    voice,
   };
 }
 
@@ -1132,6 +1569,10 @@ if (!hasSingleInstanceLock) {
     app.quit();
   });
 
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+  });
+
   app.on('before-quit', (event) => {
     if (shuttingDown) return;
     if (!serverChild) {
@@ -1160,6 +1601,17 @@ if (!hasSingleInstanceLock) {
         smoke: IS_SMOKE,
       });
       showSplash();
+      const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+U', () => {
+        if (
+          !voiceOverlayWindow ||
+          voiceOverlayWindow.isDestroyed() ||
+          !voiceOverlayWindow.isVisible()
+        ) {
+          return;
+        }
+        setVoiceOverlayInteractive(!voiceOverlayInteractive);
+      });
+      log('Voice overlay shortcut registered', { registered: shortcutRegistered });
       return bootstrap();
     })
     .catch((error) => {

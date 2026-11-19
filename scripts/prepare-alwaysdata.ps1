@@ -17,7 +17,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Version = '1.0.0',
+  [string]$Version,
   [switch]$SkipBuild,
   [string]$OutputDir
 )
@@ -27,6 +27,14 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path (Join-Path $repoRoot 'server\index.js'))) {
   throw "Raiz do projeto não encontrada em $repoRoot. Execute o script a partir de scripts\prepare-alwaysdata.ps1."
+}
+
+if (-not $Version) {
+  $serverPackage = Get-Content (Join-Path $repoRoot 'server\package.json') -Raw | ConvertFrom-Json
+  $Version = $serverPackage.version
+  if (-not $Version) {
+    throw 'Não foi possível ler a versão de server\package.json. Informe -Version.'
+  }
 }
 
 if (-not $OutputDir) {

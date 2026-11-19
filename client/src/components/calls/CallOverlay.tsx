@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Maximize2,
   Mic,
@@ -16,6 +16,7 @@ import { useAppStore } from '../../store/app';
 import { useAuthStore } from '../../store/auth';
 import { Avatar } from '../ui/Avatar';
 import { useCall } from './call-context';
+import { VoiceDock, VoiceOverlaySync } from './VoiceDock';
 
 function VideoTile({
   stream,
@@ -143,9 +144,16 @@ export function CallOverlay() {
   const conversations = useAppStore((state) => state.conversations);
   const user = useAuthStore((state) => state.user);
   const [minimized, setMinimized] = useState(false);
+  const [voiceExpanded, setVoiceExpanded] = useState(false);
+  const [voicePinned, setVoicePinned] = useState(false);
+  const expandVoice = useCallback(() => setVoiceExpanded(true), []);
 
   useEffect(() => {
-    if (activeCall?.id) setMinimized(false);
+    if (activeCall?.id) {
+      setMinimized(false);
+      setVoiceExpanded(false);
+      setVoicePinned(false);
+    }
   }, [activeCall?.id]);
 
   if (!activeCall && !incoming) return null;
@@ -168,9 +176,17 @@ export function CallOverlay() {
       );
     });
 
-    return (
-      <div className="call-overlay" role="region" aria-label="Chamada em andamento">
-        <div className={`call-window${minimized ? ' minimized' : ''}`}>
+    const fullWindow = (
+      <div
+        className={`call-overlay${isVoiceChannel ? ' voice-overlay' : ''}`}
+        role="region"
+        aria-label="Chamada em andamento"
+      >
+        <div
+          className={`call-window${isVoiceChannel ? ' voice-window' : ''}${
+            minimized && !isVoiceChannel ? ' minimized' : ''
+          }`}
+        >
           <header className="call-header">
             <div>
               <span className="call-kind">
@@ -202,11 +218,26 @@ export function CallOverlay() {
               <button
                 type="button"
                 className="call-window-toggle"
-                onClick={() => setMinimized((value) => !value)}
-                aria-label={minimized ? 'Expandir chamada' : 'Minimizar chamada'}
-                title={minimized ? 'Expandir chamada' : 'Minimizar chamada'}
+                onClick={() => {
+                  if (isVoiceChannel) setVoiceExpanded(false);
+                  else setMinimized((value) => !value);
+                }}
+                aria-label={
+                  isVoiceChannel
+                    ? 'Recolher para o widget'
+                    : minimized
+                      ? 'Expandir chamada'
+                      : 'Minimizar chamada'
+                }
+                title={
+                  isVoiceChannel
+                    ? 'Recolher para o widget'
+                    : minimized
+                      ? 'Expandir chamada'
+                      : 'Minimizar chamada'
+                }
               >
-                {minimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                {minimized && !isVoiceChannel ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
               </button>
             </div>
           </header>
@@ -276,6 +307,22 @@ export function CallOverlay() {
           </footer>
         </div>
       </div>
+    );
+
+    return (
+      <>
+        <VoiceOverlaySync pinned={voicePinned} onOpen={expandVoice} />
+        {isVoiceChannel && !voiceExpanded ? (
+          <VoiceDock
+            title={title}
+            pinned={voicePinned}
+            onExpand={expandVoice}
+            onPinnedChange={setVoicePinned}
+          />
+        ) : (
+          fullWindow
+        )}
+      </>
     );
   }
 

@@ -21,7 +21,8 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $ZipPath) {
-  $ZipPath = Join-Path $repoRoot 'deploy\UNISON-alwaysdata-1.0.0.zip'
+  $serverPackage = Get-Content (Join-Path $repoRoot 'server\package.json') -Raw | ConvertFrom-Json
+  $ZipPath = Join-Path $repoRoot "deploy\UNISON-alwaysdata-$($serverPackage.version).zip"
 }
 if (-not (Test-Path -LiteralPath $ZipPath)) {
   throw "Pacote não encontrado: $ZipPath. Rode scripts\prepare-alwaysdata.ps1 primeiro."

@@ -21,6 +21,7 @@ interface PeerWrapper {
   ignoreOffer: boolean;
   allowNegotiation: boolean;
   pending: RTCIceCandidateInit[];
+  disconnectTimer: number | null;
 }
 
 interface SignalPayload {
@@ -97,6 +98,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const cameraRef = useRef(false);
   const screenRef = useRef(false);
   const ringTimerRef = useRef<number | null>(null);
+  const recoveringMicRef = useRef(false);
+  const watchedTracksRef = useRef(new WeakSet<MediaStreamTrack>());
+  const recoverMicrophoneRef = useRef<() => void>(() => undefined);
+  const negotiatePeerRef = useRef<(peerId: string) => void>(() => undefined);
 
   const stopRinging = useCallback(() => {
     if (ringTimerRef.current !== null) {
@@ -123,6 +128,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     stopRinging();
     for (const wrapper of peersRef.current.values()) {
       try {
+        if (wrapper.disconnectTimer !== null) window.clearTimeout(wrapper.disconnectTimer);
         wrapper.pc.onicecandidate = null;
         wrapper.pc.ontrack = null;
         wrapper.pc.onnegotiationneeded = null;
@@ -198,6 +204,110 @@ export function CallProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const watchAudioTrack = useCallback(
+    (track: MediaStreamTrack) => {
+      if (watchedTracksRef.current.has(track)) return;
+      watchedTracksRef.current.add(track);
+      track.contentHint = 'speech';
+      track.addEventListener('ended', () => {
+        if (!activeRef.current) return;
+        window.setTimeout(() => {
+          if (activeRef.current) void recoverMicrophoneRef.current();
+        }, 250);
+      });
+      track.addEventListener('unmute', () => {
+        if (!activeRef.current) return;
+        micRef.current = track.enabled;
+        setMicEnabled(track.enabled);
+        broadcastMediaState();
+      });
+    },
+    [broadcastMediaState],
+  );
+
+  const recoverMicrophone = useCallback(async () => {
+    if (recoveringMicRef.current || !activeRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    recoveringMicRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      if (!activeRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const track = stream.getAudioTracks()[0];
+      if (!track) return;
+      track.enabled = micRef.current;
+      watchAudioTrack(track);
+
+      const local = localStreamRef.current;
+      if (local) {
+        for (const previous of local.getAudioTracks()) {
+          if (previous === track) continue;
+          local.removeTrack(previous);
+          previous.stop();
+        }
+        if (!local.getAudioTracks().includes(track)) local.addTrack(track);
+      }
+
+      const outbound = outboundRef.current;
+      if (outbound) {
+        for (const previous of outbound.getAudioTracks()) {
+          if (previous !== track) outbound.removeTrack(previous);
+        }
+        if (!outbound.getAudioTracks().includes(track)) outbound.addTrack(track);
+      }
+
+      audioTrackRef.current = track;
+      for (const [peerId, wrapper] of peersRef.current.entries()) {
+        if (wrapper.pc.signalingState === 'closed') continue;
+        const screenSender = screenAudioSendersRef.current.get(peerId);
+        const sender = wrapper.pc
+          .getSenders()
+          .find((item) => item.track?.kind === 'audio' && item !== screenSender);
+        try {
+          if (sender) await sender.replaceTrack(track);
+          else if (outbound) wrapper.pc.addTrack(track, outbound);
+        } catch {
+          // The peer may be renegotiating; the next negotiation reconciles it.
+        }
+        if (
+          wrapper.pc.connectionState === 'failed' ||
+          wrapper.pc.connectionState === 'disconnected'
+        ) {
+          wrapper.allowNegotiation = true;
+          try {
+            wrapper.pc.restartIce();
+          } catch {
+            // Reconnection is best-effort.
+          }
+          void negotiatePeerRef.current(peerId);
+        }
+      }
+
+      setLocalStream(local ? new MediaStream(local.getTracks()) : new MediaStream([track]));
+      setMicEnabled(track.enabled);
+      broadcastMediaState();
+      toast.info('Microfone reconectado', 'O áudio foi retomado automaticamente.');
+    } catch {
+      // Keeping the previous track is better than ending the call.
+    } finally {
+      recoveringMicRef.current = false;
+    }
+  }, [broadcastMediaState, watchAudioTrack]);
+
+  useEffect(() => {
+    recoverMicrophoneRef.current = () => {
+      void recoverMicrophone();
+    };
+  }, [recoverMicrophone]);
+
   const negotiatePeer = useCallback(
     async (peerId: string) => {
       const wrapper = peersRef.current.get(peerId);
@@ -236,6 +346,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    negotiatePeerRef.current = (peerId: string) => {
+      void negotiatePeer(peerId);
+    };
+  }, [negotiatePeer]);
+
   const ensurePeer = useCallback(
     (peerId: string, initiate = false) => {
       let wrapper = peersRef.current.get(peerId);
@@ -255,6 +371,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         ignoreOffer: false,
         allowNegotiation: false,
         pending: [],
+        disconnectTimer: null,
       };
       peersRef.current.set(peerId, wrapper);
 
@@ -277,15 +394,47 @@ export function CallProvider({ children }: { children: ReactNode }) {
       };
       pc.ontrack = (event) => {
         const stream = event.streams[0] || new MediaStream([event.track]);
+        if (event.track.kind === 'audio') {
+          event.track.addEventListener('ended', () => {
+            if (!activeRef.current || pc.signalingState === 'closed') return;
+            try {
+              pc.restartIce();
+            } catch {
+              // Reconnection is best-effort.
+            }
+          });
+        }
         setRemoteStreams((current) => ({ ...current, [peerId]: stream }));
       };
       pc.onconnectionstatechange = () => {
+        if (!wrapper) return;
+        if (wrapper.disconnectTimer !== null) {
+          window.clearTimeout(wrapper.disconnectTimer);
+          wrapper.disconnectTimer = null;
+        }
+        if (pc.connectionState === 'connected') return;
         if (pc.connectionState === 'failed') {
+          wrapper.allowNegotiation = true;
           try {
             pc.restartIce();
           } catch {
             // Reconnection is best-effort.
           }
+          void negotiatePeer(peerId);
+          return;
+        }
+        if (pc.connectionState === 'disconnected') {
+          wrapper.disconnectTimer = window.setTimeout(() => {
+            wrapper!.disconnectTimer = null;
+            if (pc.connectionState !== 'disconnected' && pc.connectionState !== 'failed') return;
+            wrapper!.allowNegotiation = true;
+            try {
+              pc.restartIce();
+            } catch {
+              // Reconnection is best-effort.
+            }
+            void negotiatePeer(peerId);
+          }, 2500);
         }
       };
       pc.onnegotiationneeded = () => {
@@ -368,6 +517,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const wrapper = peersRef.current.get(peerId);
     if (wrapper) {
       try {
+        if (wrapper.disconnectTimer !== null) window.clearTimeout(wrapper.disconnectTimer);
         wrapper.pc.close();
       } catch {
         // Already closed.
@@ -439,12 +589,90 @@ export function CallProvider({ children }: { children: ReactNode }) {
     localStreamRef.current = stream;
     outboundRef.current = outbound;
     audioTrackRef.current = stream.getAudioTracks()[0] || null;
+    if (audioTrackRef.current) watchAudioTrack(audioTrackRef.current);
     cameraTrackRef.current = stream.getVideoTracks()[0] || null;
     micRef.current = Boolean(audioTrackRef.current?.enabled);
     cameraRef.current = Boolean(cameraTrackRef.current?.enabled);
     setLocalStream(stream);
     setMicEnabled(micRef.current);
     setCameraEnabled(cameraRef.current);
+  }, [watchAudioTrack]);
+
+  useEffect(() => {
+    const devices = navigator.mediaDevices;
+    if (!devices?.addEventListener) return undefined;
+
+    let timer: number | null = null;
+    const handleDeviceChange = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        timer = null;
+        if (!activeRef.current) return;
+        const track = audioTrackRef.current;
+        if (!track) return;
+        if (track.readyState === 'ended') {
+          void recoverMicrophoneRef.current();
+          return;
+        }
+        try {
+          const available = await devices.enumerateDevices();
+          const deviceId = track.getSettings?.().deviceId;
+          if (
+            deviceId &&
+            !available.some((device) => device.kind === 'audioinput' && device.deviceId === deviceId)
+          ) {
+            void recoverMicrophoneRef.current();
+          }
+        } catch {
+          // Device enumeration is optional.
+        }
+      }, 900);
+    };
+
+    devices.addEventListener('devicechange', handleDeviceChange);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      devices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const checkHealth = () => {
+      if (!activeRef.current) return;
+      if (audioTrackRef.current?.readyState === 'ended') {
+        void recoverMicrophoneRef.current();
+      }
+      for (const [peerId, wrapper] of peersRef.current.entries()) {
+        if (wrapper.pc.signalingState === 'closed') continue;
+        const state = wrapper.pc.connectionState;
+        if (state !== 'failed' && state !== 'disconnected') continue;
+        if (wrapper.disconnectTimer !== null) continue;
+        wrapper.disconnectTimer = window.setTimeout(() => {
+          wrapper.disconnectTimer = null;
+          const current = wrapper.pc.connectionState;
+          if (current !== 'failed' && current !== 'disconnected') return;
+          wrapper.allowNegotiation = true;
+          try {
+            wrapper.pc.restartIce();
+          } catch {
+            // Reconnection is best-effort.
+          }
+          void negotiatePeerRef.current(peerId);
+        }, 1200);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkHealth();
+    };
+    const timer = window.setInterval(checkHealth, 12000);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', checkHealth);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', checkHealth);
+    };
   }, []);
 
   const startCall = useCallback(
@@ -775,6 +1003,27 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!activeRef.current || activeRef.current.id !== payload.callId) return;
       if (payload.call) applyCall(payload.call);
+      const participants = payload.call?.participants || payload.participants || [];
+      for (const participant of participants) {
+        if (participant.userId === myId || participant.status !== 'joined') continue;
+        const wrapper = peersRef.current.get(participant.userId);
+        if (!wrapper) {
+          ensurePeer(participant.userId, true);
+          continue;
+        }
+        if (
+          wrapper.pc.connectionState === 'failed' ||
+          wrapper.pc.connectionState === 'disconnected'
+        ) {
+          wrapper.allowNegotiation = true;
+          try {
+            wrapper.pc.restartIce();
+          } catch {
+            // Reconnection is best-effort.
+          }
+          void negotiatePeer(participant.userId);
+        }
+      }
       broadcastMediaState(payload.callId);
     };
 
@@ -851,7 +1100,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     broadcastMediaState,
     cleanup,
     closePeer,
+    ensurePeer,
     handleSignal,
+    myId,
+    negotiatePeer,
     startRinging,
   ]);
 

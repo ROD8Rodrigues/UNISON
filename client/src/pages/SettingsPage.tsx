@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { api, ApiError, resolveMediaUrl } from '../lib/api';
 import type { Session, User, UserSettings } from '../lib/types';
-import { classNames, formatDate, relativeTime } from '../lib/utils';
+import { classNames, formatDate, playNotificationSound, relativeTime } from '../lib/utils';
 import { useAppStore } from '../store/app';
 import { useAuthStore } from '../store/auth';
 import { confirmDialog } from '../store/dialog';
@@ -246,8 +246,30 @@ export function SettingsPage() {
     }
   }
 
-  async function changePassword() {
-    setPasswordError('');
+  function testNotifications() {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      toast.error(
+        'Permissão necessária',
+        'Ative as notificações na área de trabalho antes de testar.',
+      );
+      return;
+    }
+    try {
+      new Notification('UNISON', {
+        body: 'Notificação de teste. Se o aviso apareceu e o som tocou, está tudo certo.',
+        icon: '/icon.svg',
+        tag: 'unison-test',
+        silent: true,
+      });
+    } catch {
+      toast.error('Não foi possível exibir a notificação');
+      return;
+    }
+    if (settings.notificationSounds) playNotificationSound();
+    toast.success('Notificação de teste enviada', 'Confira o canto da tela e o som.');
+  }
+
+  async function changePassword() {    setPasswordError('');
     if (!currentPassword || !newPassword) {
       setPasswordError('Preencha a senha atual e a nova senha.');
       return;
@@ -704,6 +726,10 @@ export function SettingsPage() {
                 inicial para receber avisos.
               </p>
               <div className="settings-actions">
+                <button type="button" className="btn btn-ghost" onClick={testNotifications}>
+                  <Bell size={16} />
+                  Testar notificação
+                </button>
                 <button type="button" className="btn btn-primary" onClick={() => void saveSettings('notifications')} disabled={settingsSaving}>
                   {settingsSaving ? <Spinner size={16} /> : <Save size={16} />}
                   Salvar notificações
