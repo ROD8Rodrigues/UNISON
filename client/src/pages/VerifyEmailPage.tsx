@@ -46,10 +46,13 @@ export function VerifyEmailPage() {
         '/auth/resend-verification',
       );
       if (data.token) setDevToken(data.token);
-      toast.success(
-        data.delivered ? 'Email reenviado' : 'Link de verificação gerado',
-        data.delivered ? 'Confira sua caixa de entrada.' : 'O SMTP não está configurado.',
-      );
+      if (data.delivered) {
+        toast.success('Solicitação de email aceita', 'Confira a caixa de entrada e a pasta de spam.');
+      } else if (data.token) {
+        toast.info('Link de verificação local gerado', 'O transporte de email não está disponível neste ambiente.');
+      } else {
+        toast.error('Email não enviado', 'O serviço de email não aceitou a mensagem. Tente novamente mais tarde.');
+      }
     } catch (error) {
       toast.error(
         'Não foi possível reenviar',

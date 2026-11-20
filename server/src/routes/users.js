@@ -71,7 +71,28 @@ function createUsersRouter(db) {
     }
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     const settings = getSettingsRow(db, req.user.id);
-    res.json({ user: serializeUser(user, { self: true, settings }) });
+    const serialized = serializeUser(user, { self: true, settings });
+    const recipients = db
+      .prepare(
+        `SELECT user_id FROM conversation_members
+         WHERE conversation_id IN (
+           SELECT conversation_id FROM conversation_members WHERE user_id = ?
+         )
+         UNION SELECT friend_id AS user_id FROM friendships WHERE user_id = ?
+         UNION SELECT user_id FROM friendships WHERE friend_id = ?
+         UNION SELECT user_id FROM space_members
+         WHERE space_id IN (SELECT space_id FROM space_members WHERE user_id = ?)`,
+      )
+      .all(req.user.id, req.user.id, req.user.id, req.user.id)
+      .map((row) => row.user_id);
+    // Profile pushes go to broad audiences, so never include lastSeen here.
+    // That field is private and must be filtered per viewer by the API instead.
+    const publicUser = serializeUser(user);
+    delete publicUser.lastSeen;
+    bus.emitToUsers([...recipients, req.user.id], 'user:updated', {
+      user: publicUser,
+    });
+    res.json({ user: serialized });
   });
 
   router.put('/me/settings', validate(updateSettingsSchema), (req, res) => {

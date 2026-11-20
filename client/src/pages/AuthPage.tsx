@@ -85,7 +85,13 @@ export function AuthPage({ mode }: { mode: Mode }) {
           password: form.password,
           displayName: form.displayName.trim() || undefined,
         });
-        toast.success('Conta criada', 'Você já está conectado ao UNISON.');
+        if (result.emailVerification?.delivered) {
+          toast.success('Conta criada', 'Você já está conectado. Confira seu email para verificar a conta.');
+        } else if (result.emailVerification?.token) {
+          toast.success('Conta criada', 'O transporte local não enviou email; acesse o link de verificação no aviso.');
+        } else {
+          toast.error('Conta criada, email pendente', 'O serviço de email não aceitou a verificação. Você pode reenviar nas configurações.');
+        }
         if (result.emailVerification?.token) {
           sessionStorage.setItem('tw:dev-verify-token', result.emailVerification.token);
         }

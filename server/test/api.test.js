@@ -11,6 +11,7 @@ process.env.EXPOSE_DEV_TOKENS = 'true';
 process.env.UPLOAD_DIR = path.join(os.tmpdir(), `unison-api-test-${process.pid}`);
 
 const { startServer, register, refreshCookie } = require('./helpers');
+const config = require('../src/config');
 
 let ctx;
 let alice;
@@ -128,12 +129,27 @@ test('email verification consumes a single-use token', async () => {
   assert.equal(dave.response.body.emailVerification.delivered, false);
   assert.equal(typeof dave.response.body.emailVerification.token, 'string');
 
+  const previousToken = dave.response.body.emailVerification.token;
+  const resent = await ctx.request('/api/auth/resend-verification', {
+    method: 'POST',
+    token: dave.token,
+  });
+  assert.equal(resent.status, 200, JSON.stringify(resent.body));
+  assert.equal(resent.body.delivered, false);
+  assert.equal(typeof resent.body.token, 'string');
+  assert.notEqual(resent.body.token, previousToken);
+  const invalidated = await ctx.request('/api/auth/verify-email', {
+    method: 'POST',
+    body: { token: previousToken },
+  });
+  expectError(invalidated, 400, 'INVALID_TOKEN');
+
   const beforeVerify = await ctx.request('/api/auth/me', { token: dave.token });
   assert.equal(beforeVerify.body.user.emailVerified, false);
 
   const verify = await ctx.request('/api/auth/verify-email', {
     method: 'POST',
-    body: { token: dave.response.body.emailVerification.token },
+    body: { token: resent.body.token },
   });
   assert.equal(verify.status, 200);
 
@@ -142,9 +158,61 @@ test('email verification consumes a single-use token', async () => {
 
   const replay = await ctx.request('/api/auth/verify-email', {
     method: 'POST',
-    body: { token: dave.response.body.emailVerification.token },
+    body: { token: resent.body.token },
   });
   expectError(replay, 400, 'INVALID_TOKEN');
+});
+
+test('failed resend keeps the previous verification token usable', async () => {
+  const erin = await register(ctx.request, 'erin');
+  assert.equal(erin.response.status, 201);
+  const previousToken = erin.response.body.emailVerification.token;
+  assert.equal(typeof previousToken, 'string');
+
+  const original = config.exposeDevTokens;
+  config.exposeDevTokens = false;
+  try {
+    const resent = await ctx.request('/api/auth/resend-verification', {
+      method: 'POST',
+      token: erin.token,
+    });
+    assert.equal(resent.status, 200, JSON.stringify(resent.body));
+    assert.equal(resent.body.delivered, false);
+    assert.equal(resent.body.token, undefined);
+  } finally {
+    config.exposeDevTokens = original;
+  }
+
+  const verify = await ctx.request('/api/auth/verify-email', {
+    method: 'POST',
+    body: { token: previousToken },
+  });
+  assert.equal(verify.status, 200, JSON.stringify(verify.body));
+});
+
+test('user setting toggles persist and return normalized boolean values', async () => {
+  const user = await register(ctx.request, 'toggleuser');
+  const saved = await ctx.request('/api/users/me/settings', {
+    method: 'PUT',
+    token: user.token,
+    body: {
+      privacyReadReceipts: false,
+      privacyTyping: false,
+      desktopNotifications: true,
+      notificationSounds: false,
+    },
+  });
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.equal(saved.body.settings.privacyReadReceipts, false);
+  assert.equal(saved.body.settings.privacyTyping, false);
+  assert.equal(saved.body.settings.desktopNotifications, true);
+  assert.equal(saved.body.settings.notificationSounds, false);
+
+  const refreshed = await ctx.request('/api/auth/me', { token: user.token });
+  assert.equal(refreshed.body.user.settings.privacyReadReceipts, false);
+  assert.equal(refreshed.body.user.settings.privacyTyping, false);
+  assert.equal(refreshed.body.user.settings.desktopNotifications, true);
+  assert.equal(refreshed.body.user.settings.notificationSounds, false);
 });
 
 test('refresh rotates the opaque session cookie and enforces origin', async () => {

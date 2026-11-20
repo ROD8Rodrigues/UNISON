@@ -100,6 +100,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const ringTimerRef = useRef<number | null>(null);
   const recoveringMicRef = useRef(false);
   const watchedTracksRef = useRef(new WeakSet<MediaStreamTrack>());
+  const trackMuteTimersRef = useRef(new WeakMap<MediaStreamTrack, number>());
+  const lastMicRecoveryErrorRef = useRef(0);
   const recoverMicrophoneRef = useRef<() => void>(() => undefined);
   const negotiatePeerRef = useRef<(peerId: string) => void>(() => undefined);
 
@@ -211,11 +213,28 @@ export function CallProvider({ children }: { children: ReactNode }) {
       track.contentHint = 'speech';
       track.addEventListener('ended', () => {
         if (!activeRef.current) return;
+        const timer = trackMuteTimersRef.current.get(track);
+        if (timer !== undefined) window.clearTimeout(timer);
+        trackMuteTimersRef.current.delete(track);
         window.setTimeout(() => {
           if (activeRef.current) void recoverMicrophoneRef.current();
         }, 250);
       });
+      track.addEventListener('mute', () => {
+        const previous = trackMuteTimersRef.current.get(track);
+        if (previous !== undefined) window.clearTimeout(previous);
+        const timer = window.setTimeout(() => {
+          trackMuteTimersRef.current.delete(track);
+          if (activeRef.current && track.enabled && track.muted) {
+            void recoverMicrophoneRef.current();
+          }
+        }, 1800);
+        trackMuteTimersRef.current.set(track, timer);
+      });
       track.addEventListener('unmute', () => {
+        const timer = trackMuteTimersRef.current.get(track);
+        if (timer !== undefined) window.clearTimeout(timer);
+        trackMuteTimersRef.current.delete(track);
         if (!activeRef.current) return;
         micRef.current = track.enabled;
         setMicEnabled(track.enabled);
@@ -296,7 +315,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
       broadcastMediaState();
       toast.info('Microfone reconectado', 'O áudio foi retomado automaticamente.');
     } catch {
-      // Keeping the previous track is better than ending the call.
+      // Keep the call alive and tell the user that the local microphone needs attention.
+      const timestamp = Date.now();
+      if (timestamp - lastMicRecoveryErrorRef.current > 30000) {
+        lastMicRecoveryErrorRef.current = timestamp;
+        toast.error('Microfone interrompido', 'Não foi possível recuperar o áudio. Verifique o dispositivo e as permissões.');
+      }
     } finally {
       recoveringMicRef.current = false;
     }
@@ -1057,6 +1081,29 @@ export function CallProvider({ children }: { children: ReactNode }) {
       }));
     };
 
+    const onUserUpdated = (payload: { user?: { id: string; username: string; displayName: string; avatarUrl: string | null; presence: Call['participants'][number]['presence'] } }) => {
+      const updated = payload.user;
+      if (!updated) return;
+      const current = activeRef.current;
+      if (!current) return;
+      const next = {
+        ...current,
+        participants: current.participants.map((participant) =>
+          participant.userId === updated.id
+            ? {
+                ...participant,
+                username: updated.username,
+                displayName: updated.displayName,
+                avatarUrl: updated.avatarUrl,
+                presence: updated.presence,
+              }
+            : participant,
+        ),
+      };
+      activeRef.current = next;
+      setActiveCall(next);
+    };
+
     const onCallEnded = (payload: { callId: string; reason?: string }) => {
       const wasActive = activeRef.current?.id === payload.callId;
       const wasIncoming = incomingRef.current?.call.id === payload.callId;
@@ -1080,6 +1127,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     socket.on('call:participant-left', onParticipantLeft);
     socket.on('call:participant-declined', onParticipantDeclined);
     socket.on('call:media-state', onMediaState);
+    socket.on('user:updated', onUserUpdated);
     socket.on('call:ended', onCallEnded);
     socket.on('webrtc:signal', handleSignal);
     socket.on('disconnect', onDisconnect);
@@ -1090,6 +1138,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       socket.off('call:participant-left', onParticipantLeft);
       socket.off('call:participant-declined', onParticipantDeclined);
       socket.off('call:media-state', onMediaState);
+      socket.off('user:updated', onUserUpdated);
       socket.off('call:ended', onCallEnded);
       socket.off('webrtc:signal', handleSignal);
       socket.off('disconnect', onDisconnect);

@@ -61,6 +61,7 @@ interface AppState {
   markConversationRead: (conversationId: string) => void;
   applyReadReceipt: (conversationId: string, userId: string, lastReadAt: string) => void;
   setTyping: (conversationId: string, userId: string, username: string, isTyping: boolean) => void;
+  applyUserProfile: (user: User) => void;
   applyPresence: (userId: string, presence: Presence, lastSeen: string | null) => void;
   addNotification: (notification: AppNotification) => void;
   markNotificationRead: (notificationId: string) => Promise<void>;
@@ -395,6 +396,50 @@ export const useAppStore = create<AppState>((set, get) => ({
             ? { ...conversation.otherUser, presence, lastSeen }
             : conversation.otherUser,
       })),
+    }));
+  },
+
+  applyUserProfile: (user) => {
+    const update = <T extends User>(candidate: T): T =>
+      candidate.id === user.id ? { ...candidate, ...user } : candidate;
+    set((state) => ({
+      friends: state.friends.map(update),
+      blockedUsers: state.blockedUsers.map(update),
+      incomingRequests: state.incomingRequests.map((request) => ({
+        ...request,
+        sender: update(request.sender),
+        receiver: update(request.receiver),
+      })),
+      outgoingRequests: state.outgoingRequests.map((request) => ({
+        ...request,
+        sender: update(request.sender),
+        receiver: update(request.receiver),
+      })),
+      conversations: state.conversations.map((conversation) => ({
+        ...conversation,
+        members: conversation.members.map(update),
+        otherUser: conversation.otherUser ? update(conversation.otherUser) : null,
+      })),
+      messages: Object.fromEntries(
+        Object.entries(state.messages).map(([conversationId, messages]) => [
+          conversationId,
+          messages.map((message) =>
+            message.sender?.id === user.id
+              ? {
+                  ...message,
+                  sender: {
+                    ...message.sender,
+                    username: user.username,
+                    displayName: user.displayName,
+                    avatarUrl: user.avatarUrl,
+                    presence: user.presence,
+                  },
+                }
+              : message,
+          ),
+        ]),
+      ),
+      spaceVersion: state.spaceVersion + 1,
     }));
   },
 

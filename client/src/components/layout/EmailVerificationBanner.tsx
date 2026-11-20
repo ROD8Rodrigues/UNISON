@@ -34,10 +34,13 @@ export function EmailVerificationBanner() {
         sessionStorage.setItem('tw:dev-verify-token', data.token);
         setModalOpen(true);
       }
-      toast.success(
-        data.delivered ? 'Email reenviado' : 'Link de verificação gerado',
-        data.delivered ? 'Confira sua caixa de entrada.' : 'O envio de email não está configurado neste ambiente.',
-      );
+      if (data.delivered) {
+        toast.success('Solicitação de email aceita', 'Confira a caixa de entrada e a pasta de spam.');
+      } else if (data.token) {
+        toast.info('Link de verificação local gerado', 'O transporte de email não está disponível neste ambiente.');
+      } else {
+        toast.error('Email não enviado', 'O serviço de email não aceitou a mensagem. Tente novamente mais tarde.');
+      }
     } catch (error) {
       if (error instanceof ApiError && error.code === 'ALREADY_VERIFIED') {
         toast.success('Email já verificado');

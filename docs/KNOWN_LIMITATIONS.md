@@ -14,7 +14,7 @@ Este documento separa o que foi validado do que depende de ambiente externo. A c
 - TURN é configurável no build com credenciais estáticas. Credenciais temporárias (`use-auth-secret`) não estão implementadas.
 - `restartIce` e reconexão de socket estão implementados, mas não foram testados em cenários reais de troca de rede.
 - **Canais de voz (1.1.0):** entrada, saída e presença são cobertas por teste automatizado de Socket.IO e API. A chamada do canal usa a mesma topologia **mesh** das demais chamadas, então o limite de 9 participantes e a dependência de STUN/TURN se aplicam. A entrada em um canal com duas contas reais, em navegadores/dispositivos distintos, ainda não foi executada neste ambiente.
-- **Canais de voz (1.2.0):** o dock compacto, a expansão/recolhimento, o HUD ao minimizar, o mute e a saída pelo próprio HUD são cobertos por `npm run smoke:voice` no Electron com dispositivo de mídia falso. A recuperação de microfone (track encerrada, `devicechange`, `restartIce`, renegociação) é coberta por código defensivo e smoke, mas **não** por um teste real de remoção de dispositivo ou troca de rede.
+- **Canais de voz (1.2.0):** o dock compacto, a expansão/recolhimento, o HUD ao minimizar, o mute e a saída pelo próprio HUD são cobertos por `npm run smoke:voice` no Electron com dispositivo de mídia falso. A recuperação de microfone (track encerrada, `devicechange`, `restartIce`, renegociação) é coberta por código defensivo e smoke, mas **não** por um teste real de remoção de dispositivo ou troca de rede. Foi corrigido um bug em que o dock desmontava os tiles remotos e interrompia o áudio: `RemoteAudioSinks` agora mantém um elemento de áudio por participante independente do dock/janela, e os tiles de vídeo ficaram mudos para não duplicar o som. A correção ainda não foi validada com duas contas/dispositivos reais.
 - **HUD do desktop (1.2.0):** o overlay é uma janela transparente, always-on-top e click-through validada no smoke (`focusable: false`, `setIgnoreMouseEvents(true, { forward: true })`). `Ctrl+Shift+U` alterna a interação. Ele cobre jogos em modo janela/borderless; **jogos em fullscreen exclusivo** podem ficar por cima e esconder o HUD, pois o Windows não compõe overlays sobre esse modo. O HUD não captura mouse enquanto passivo, mas a janela do jogo precisa permitir overlay do sistema.
 - **PiP do navegador (1.2.0):** o botão de flutuar usa Document Picture-in-Picture em Chrome/Edge. A janela PiP **não é click-through** (limitação da plataforma) e pode ficar atrás de jogos em fullscreen. Em navegadores sem a API, o botão fica desabilitado. O Electron não expõe Document PiP, então esse caminho não é exercitado pelo smoke automatizado.
 
@@ -22,14 +22,17 @@ Este documento separa o que foi validado do que depende de ambiente externo. A c
 
 ## Email e SMTP
 
-**Status: implementado, entrega externa não validada.**
+**Status: implementado; entrega externa validada, deliverability parcial.**
 
 - SMTP é opcional. A partir da 1.2.0, `MAIL_TRANSPORT=auto` usa SMTP quando `SMTP_HOST` existe e, sem ele, tenta o `sendmail` local; sem nenhum dos dois, o email não é entregue e o token aparece apenas no log/API de desenvolvimento.
 - Em produção, tokens não são expostos pela API e o log não inclui o link/token.
-- Na alwaysdata, o backend 1.2.0 está ativo com `transport=sendmail:/usr/sbin/sendmail` e o binário (msmtp) aceitou uma mensagem de teste com `250 OK`. Isso valida o transporte local, **não** a entrega final: Gmail/Outlook, spam, SPF/DKIM/DMARC do subdomínio, bounce e limites não foram testados.
+- Em 19/11/2026, um email de verificação enviado pelo backend 1.2.0 em produção chegou a uma caixa externa (mail.tm/`euploading.com`), com `delivered=true`, `Message-ID` e DKIM válido `d=alwaysdata.net` (`s=default`, chave de 1024 bits). O link `verify-email?token=` foi aceito uma vez e rejeitado no reuso (`INVALID_TOKEN`), confirmando o fluxo ponta a ponta.
+- O mesmo email foi avaliado pelo **mail-tester.com com 6/10**. O relatório confirmou: **SPF ausente** para `telawork.alwaysdata.net` (o servidor `188.72.70.3` não está autorizado pelo domínio, `Received-SPF: none`), **DKIM válido porém não alinhado** ao `From` (domínios diferentes sob `adkim=s`), **sem MX** para o subdomínio e sem `List-Unsubscribe`. O mail-tester registrou `dmarc=none` para o subdomínio, enquanto `alwaysdata.net` publica `p=quarantine; sp=quarantine; aspf=s; adkim=s`; há risco de Gmail/Outlook tratarem como spam/quarentena. O SpamAssassin não marcou a mensagem como spam e o IP não estava nos blocklists consultados.
+- Se o transporte falhar em produção, o reenvio preserva o token anterior e descarta o novo; se o envio for aceito, invalida os tokens antigos. O comportamento é coberto por teste automatizado.
+- Gmail e Outlook **não foram testados diretamente** (sem acesso às caixas). Bounce, reputação de IP, limites e entrega em caixa de entrada continuam não comprovados.
 - Não há fila de email, retentativa, template i18n ou tracking.
 
-**Para validar:** solicitar verificação/recuperação para uma caixa Gmail e uma Outlook, conferir caixa de entrada/spam, expiração, uso único e o log `mail` do servidor.
+**Para melhorar:** usar um domínio próprio com SPF (incluindo `_spf.alwaysdata.com`), DKIM e DMARC alinhados, ou pedir à alwaysdata um TXT/SPF para o subdomínio; alternativamente, usar um provedor SMTP com domínio autenticado. Depois, testar verificação/recuperação em Gmail e Outlook, conferir spam, expiração e uso único.
 
 ## Aplicativos nativos
 
@@ -128,7 +131,7 @@ Consulte [SECURITY.md](SECURITY.md).
 
 **Status: bom para o escopo, não exaustivo.**
 
-- 17 testes de backend e 13 de frontend passam.
+- 20 testes de backend e 15 de frontend passam.
 - O desktop tem smoke test real no build empacotado, portátil e instalado, além de `smoke:voice` para o dock/HUD com mídia falsa, mas não há suíte E2E de UI, testes de upgrade ou automação de assinatura.
 - O PiP do navegador não é coberto por teste automatizado; a API Document PiP não existe no Electron.
 - Não há testes E2E em navegador, testes de contrato, mutation testing ou testes de acessibilidade formais.
@@ -160,7 +163,7 @@ Consulte [SECURITY.md](SECURITY.md).
 | --- | --- |
 | Validação real de áudio/vídeo/tela | Dois dispositivos/navegadores com mídia e HTTPS |
 | Chamadas confiáveis atrás de NAT restritivo | Servidor TURN (coturn/provedor) |
-| Entrega de email | Servidor SMTP e domínio configurado (SPF/DKIM/DMARC) |
+| Entrega de email | Domínio próprio/alinhamento SPF/DKIM e teste em Gmail/Outlook |
 | Instalação/publicação mobile | Empacotamento nativo e contas de loja |
 | Push em background | Web Push/VAPID ou app nativo |
 | Validação de produção em domínio real | DNS, TLS e proxy reverso |
@@ -172,14 +175,14 @@ Consulte [SECURITY.md](SECURITY.md).
 
 ## O que foi validado de fato
 
-- Backend: lint, 17 testes automatizados, auditoria de dependências, inicialização e smoke test em `NODE_ENV=production`.
-- Frontend: lint, typecheck, 13 testes, build de produção, assets PWA servidos com headers corretos.
+- Backend: lint, 20 testes automatizados, auditoria de dependências, inicialização e smoke test em `NODE_ENV=production`.
+- Frontend: lint, typecheck, 15 testes, build de produção, assets PWA servidos com headers corretos.
 - Fluxos HTTP: registro, login, refresh com cookie seguro, `/me`, 404 JSON, SPA fallback, manifest e service worker.
 - Banco: migrations aplicadas em banco vazio em memória e em arquivo temporário.
 - Segurança: headers, CORS, autorização, validação, uploads, revogação de sessão e isolamento de salas cobertos por testes.
 - Desktop: smoke no Electron, no `win-unpacked`, no portátil e no app instalado; instalação/desinstalação silenciosa; duas inicializações com o mesmo perfil; modo remoto em loopback com BOM; captura real da tela de login; `npm audit --omit=dev` do servidor com 0 vulnerabilidades. O client/desktop mantêm o advisory dev-only de `picomatch` sem patch publicado. No build 1.1.0, o smoke do `win-unpacked` e do portátil também confirmou `getDisplayMedia` com 1 faixa de vídeo e 1 faixa de áudio loopback (`System audio`). Em 1.2.0, o `smoke:voice` validou dock com 1 participante, expansão, recolhimento, HUD visível/always-on-top/`focusable:false`, modo interativo, mute e saída pelo HUD (capturas salvas em `%TEMP%\unison-smoke-*`).
-- Voz (1.2.0): `CallProvider` recupera o microfone quando a track termina, em `devicechange` e após `restartIce`/renegociação; o servidor emite `call:participant-left` quando um socket cai. Esses caminhos foram exercitados por typecheck/lint/smoke, mas a perda real de voz do tester só pode ser confirmada com duas contas e dispositivos reais.
+- Voz (1.2.0): `CallProvider` recupera o microfone quando a track termina, em `devicechange` e após `restartIce`/renegociação; o servidor emite `call:participant-left` quando um socket cai. O áudio remoto agora é mantido por `RemoteAudioSinks`, independente do dock, e os tiles de vídeo não tocam áudio duplicado. Esses caminhos foram exercitados por typecheck/lint/smoke, mas a perda real de voz do tester só pode ser confirmada com duas contas e dispositivos reais.
 - Desktop, controles observados: backend em `127.0.0.1`, `contextIsolation`/`sandbox`, cookie de refresh `HttpOnly`/`SameSite=Lax`/`Path=/api/auth`, `Secure=false` apenas em loopback e `serverUrl` remoto restrito a HTTPS.
-- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Em 18/11/2026 o bundle e os arquivos do servidor 1.1.0 (canais de voz, convite personalizado e toggles) foram publicados. Em 19/11/2026 o bundle 1.2.0 (`assets/index-BPx4Ru7T.js` e `assets/index-D88E7iwP.css`) e o backend 1.2.0 (dock/HUD, avatar, cargos, notificações e `sendmail`) foram publicados, com backup, e o site foi reiniciado. `/health` responde `1.2.0` e o transporte ativo é `sendmail:/usr/sbin/sendmail`. Canais de voz com duas contas reais e entrega de email em Gmail/Outlook ainda não foram testados em produção.
+- Deploy remoto alwaysdata: `/health`, SPA, service worker, manifest, registro, login, cookie `Secure`, refresh, `/me`, DM, mensagem, upload/download, Socket.IO e sinalização de chamada (`call:start`, `call:incoming`, `call:accept`, `webrtc:signal`, `call:leave`, `call:ended`) validados em 18/11/2026. O desktop empacotado abriu a interface remota via HTTPS com `health: ok`. Em 18/11/2026 o bundle e os arquivos do servidor 1.1.0 (canais de voz, convite personalizado e toggles) foram publicados. Em 19/11/2026 o bundle 1.2.0 (`assets/index-BPx4Ru7T.js` e `assets/index-D88E7iwP.css`) e o backend 1.2.0 (dock/HUD, avatar, cargos, notificações e `sendmail`) foram publicados, com backup, e o site foi reiniciado. `/health` responde `1.2.0` e o transporte ativo é `sendmail:/usr/sbin/sendmail`. A entrega externa de email foi validada (mail.tm + mail-tester 6/10), mas SPF/DKIM alinhado e entrega em Gmail/Outlook ainda não; canais de voz com duas contas reais também não foram testados em produção.
 
 Tudo além disso deve ser tratado como **não validado** até execução em ambiente real.

@@ -30,6 +30,12 @@ const authLimiter = makeLimiter({
   message: 'Muitas tentativas de autenticação. Tente novamente em alguns minutos.',
 });
 
+const verificationResendLimiter = makeLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  message: 'Muitos pedidos de verificação. Aguarde alguns minutos antes de tentar novamente.',
+});
+
 const messageLimiter = makeLimiter({
   windowMs: 60 * 1000,
   limit: 90,
@@ -48,4 +54,11 @@ const searchLimiter = makeLimiter({
   message: 'Muitas buscas. Tente novamente em instantes.',
 });
 
-module.exports = { generalLimiter, authLimiter, messageLimiter, uploadLimiter, searchLimiter };
+module.exports = {
+  generalLimiter,
+  authLimiter,
+  verificationResendLimiter,
+  messageLimiter,
+  uploadLimiter,
+  searchLimiter,
+};

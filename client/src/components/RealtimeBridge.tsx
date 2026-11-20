@@ -166,6 +166,15 @@ export function RealtimeBridge() {
       useAppStore.getState().applyPresence(payload.userId, payload.presence, payload.lastSeen);
     };
 
+    const handleUserUpdated = (payload: { user?: User }) => {
+      if (!payload.user) return;
+      useAppStore.getState().applyUserProfile(payload.user);
+      const current = useAuthStore.getState().user;
+      if (current?.id === payload.user.id) {
+        useAuthStore.getState().setUser({ ...current, ...payload.user });
+      }
+    };
+
     const handleFriendRequest = (payload: FriendRequestPayload) => {
       useAppStore.getState().refreshRequests().catch(() => undefined);
       const request = payload.request;
@@ -254,6 +263,7 @@ export function RealtimeBridge() {
     socket.on('conversation:read', handleConversationRead);
     socket.on('typing:update', handleTyping);
     socket.on('presence:update', handlePresence);
+    socket.on('user:updated', handleUserUpdated);
     socket.on('friend:request', handleFriendRequest);
     socket.on('friend:accepted', handleFriendAccepted);
     socket.on('friend:removed', handleFriendRemoved);
@@ -285,6 +295,7 @@ export function RealtimeBridge() {
       socket.off('conversation:read', handleConversationRead);
       socket.off('typing:update', handleTyping);
       socket.off('presence:update', handlePresence);
+      socket.off('user:updated', handleUserUpdated);
       socket.off('friend:request', handleFriendRequest);
       socket.off('friend:accepted', handleFriendAccepted);
       socket.off('friend:removed', handleFriendRemoved);

@@ -140,6 +140,39 @@ test('realtime message, typing and room isolation', async () => {
   assert.match(forbiddenTyping.message, /não faz parte|não encontr|Conversa/i);
 });
 
+test('profile changes sync to shared conversations without reaching unrelated users', async () => {
+  const dm = await ctx.request('/api/conversations/dm', {
+    method: 'POST',
+    token: alex.token,
+    body: { userId: blair.user.id },
+  });
+  assert.equal(dm.status, 200);
+  const alexSocket = await connect(alex.token);
+  const blairSocket = await connect(blair.token);
+  const codySocket = await connect(cody.token);
+  const updatedPromise = waitForEvent(blairSocket, 'user:updated');
+  const unrelated = collectEvents(codySocket, 'user:updated');
+
+  const response = await ctx.request('/api/users/me', {
+    method: 'PATCH',
+    token: alex.token,
+    body: { avatarUrl: '/uploads/alex-new.png', displayName: 'Alex Updated' },
+  });
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  const update = await updatedPromise;
+  assert.equal(update.user.id, alex.user.id);
+  assert.equal(update.user.avatarUrl, '/uploads/alex-new.png');
+  assert.equal(update.user.displayName, 'Alex Updated');
+  // Broad profile broadcasts must not carry private presence data.
+  assert.equal('lastSeen' in update.user, false);
+  await delay(30);
+  unrelated.stop();
+  assert.equal(unrelated.events.length, 0);
+  alexSocket.disconnect();
+  blairSocket.disconnect();
+  codySocket.disconnect();
+});
+
 test('call signaling reaches participants and ends in order', async () => {
   const dm = await ctx.request('/api/conversations/dm', {
     method: 'POST',

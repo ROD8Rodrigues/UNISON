@@ -53,32 +53,35 @@ Para gerar instalador e portátil: `cmd /c "npm run dist"`. O smoke test também
 
 ## Resultado da última execução
 
-Data: **18/11/2026** (horário local).
+Data: **19/11/2026** (horário local).
 
 | Verificação | Resultado |
 | --- | --- |
 | Backend — lint | ✅ sem erros |
-| Backend — testes | ✅ 17/17 |
+| Backend — testes | ✅ 20/20 |
 | Frontend — lint | ✅ sem erros |
 | Frontend — typecheck | ✅ sem erros |
-| Frontend — testes | ✅ 13/13 |
+| Frontend — testes | ✅ 15/15 |
 | Frontend — build | ✅ concluído |
 | Desktop — checagem sintática | ✅ sem erros |
-| Desktop — smoke 1.1.0 empacotado e portátil | ✅ |
+| Desktop — smoke 1.2.0 empacotado e portátil | ✅ execuções anteriores |
+| Desktop — `smoke:voice` | ✅ dock/HUD com mídia falsa |
 | Desktop — modo remoto | ✅ (contra backend local) |
 | `npm audit --omit=dev` server | ✅ 0 vulnerabilidades |
 | `npm audit` client | ⚠️ 12 alertas dev-only de `picomatch` (CVE-2026-112366, sem patch publicado) |
 | `npm audit` desktop | ⚠️ 9 alertas dev-only de `picomatch` (CVE-2026-112366, sem patch publicado) |
 
-Build de produção observado em 1.1.0:
+Build de produção observado em 1.2.0:
 
-- JS: ~561 kB (158 kB gzip)
-- CSS: ~126 kB (22 kB gzip)
+- JS: ~577 kB (163 kB gzip)
+- CSS: ~131 kB (23 kB gzip)
 - Aviso não fatal do Vite sobre chunk > 500 kB
 
-## Validação do pacote alwaysdata (18/11/2026)
+## Validação do pacote alwaysdata (registro histórico)
 
-O pacote **1.1.0** foi gerado, testado localmente e publicado na conta `telawork`. O novo `client/dist` já está no ar; os arquivos do servidor foram trocados e a migration `003_voice_channels.sql` está presente. O processo Node.js do site ainda precisa ser reiniciado no painel para carregar o backend 1.1.0 — até lá, `/health` responde `1.0.0`.
+O pacote **1.1.0** foi gerado, testado localmente e publicado na conta `telawork` em 18/11/2026. O novo `client/dist` já está no ar; os arquivos do servidor foram trocados e a migration `003_voice_channels.sql` está presente. Este trecho registra aquela execução.
+
+Em **19/11/2026**, o bundle e o backend **1.2.0** foram publicados com backup, o site foi reiniciado, `/health` passou a responder `1.2.0`, o transporte ativo ficou `sendmail:/usr/sbin/sendmail` e a entrega externa de email foi validada (mail.tm + Mail-Tester 6/10). Consulte [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
 ```powershell
 # gera deploy/UNISON-alwaysdata-1.1.0.zip
@@ -104,32 +107,35 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-alwaysdata.ps1 -ZipPath
 
 O smoke test usa um banco temporário e não toca em `server/data` nem em `server/uploads`. A conta real da alwaysdata já existe, mas a validação em produção (upload, site Node.js, Let's Encrypt e `https://telawork.alwaysdata.net`) ainda não foi executada neste ambiente; o site Apache padrão continua ativo.
 
-## Cobertura do backend (17 testes)
+## Cobertura do backend (20 testes)
 
-### API (`server/test/api.test.js` — 13 testes)
+### API (`server/test/api.test.js` — 15 testes)
 
 1. Healthcheck, headers de segurança e formato de resposta.
 2. Registro rejeita senha fraca, duplicidade e nomes reservados.
 3. Login resiste a injeção SQL e rejeita credenciais inválidas.
 4. Endpoints protegidos exigem sessão viva.
 5. Verificação de email consome token de uso único.
-6. Refresh rotaciona cookie opaco e valida origem.
-7. Logout revoga o access token imediatamente.
-8. Troca de senha revoga outras sessões e rotaciona credenciais.
-9. Reset de senha usa token de uso único e revoga sessões.
-10. Pedidos de amizade podem ser aceitos e geram notificações.
-11. DMs suportam edição, reações, fixação, busca e recibos de leitura.
-12. Spaces aplicam papéis, canais privados, convites (inclusive link personalizado), canais de voz e banimentos.
-13. Uploads rejeitam tipos perigosos e neutralizam nomes com traversal.
+6. Reenvio com falha de transporte preserva o token anterior e descarta o novo.
+7. Toggles de configuração persistem e retornam booleanos normalizados.
+8. Refresh rotaciona cookie opaco e valida origem.
+9. Logout revoga o access token imediatamente.
+10. Troca de senha revoga outras sessões e rotaciona credenciais.
+11. Reset de senha usa token de uso único e revoga sessões.
+12. Pedidos de amizade podem ser aceitos e geram notificações.
+13. DMs suportam edição, reações, fixação, busca e recibos de leitura.
+14. Spaces aplicam papéis, canais privados, convites (inclusive link personalizado), canais de voz e banimentos.
+15. Uploads rejeitam tipos perigosos e neutralizam nomes com traversal.
 
-### Realtime (`server/test/realtime.test.js` — 4 testes)
+### Realtime (`server/test/realtime.test.js` — 5 testes)
 
 1. Mensagem em tempo real, digitação e isolamento de salas.
-2. Sinalização de chamada chega aos participantes e encerra na ordem correta.
-3. Canais de voz expõem presença (entrar, segundo participante, sair e encerrar).
-4. Logout revoga o socket ativo e bloqueia reutilização do token.
+2. Atualização de perfil chega a conversas compartilhadas sem `lastSeen` e sem alcançar usuários não relacionados.
+3. Sinalização de chamada chega aos participantes e encerra na ordem correta.
+4. Canais de voz expõem presença (entrar, segundo participante, sair e encerrar).
+5. Logout revoga o socket ativo e bloqueia reutilização do token.
 
-## Cobertura do frontend (13 testes)
+## Cobertura do frontend (15 testes)
 
 ### `src/lib/utils.test.ts` — 9 testes
 
@@ -145,6 +151,14 @@ O smoke test usa um banco temporário e não toca em `server/data` nem em `serve
 - Reações agrupadas com contagem e estado do viewer.
 - Recibo de leitura apenas para o remetente.
 - Ausência de controles de remetente em mensagem de terceiros.
+
+### `src/store/app.test.ts` — 1 teste
+
+- Sincronização de nome/avatar atualizados em amigos, membros de conversa e mensagens já carregadas.
+
+### `src/components/calls/CallOverlay.test.tsx` — 1 teste
+
+- O sink de áudio remoto permanece montado no dock compacto e após expandir a chamada, sem duplicar o elemento de áudio.
 
 ## Smoke test de produção
 
@@ -206,13 +220,13 @@ Os executáveis estão **`NotSigned`**: assinatura Authenticode, reputação de 
 
 ## O que **não** está coberto por automação
 
-- Chamadas com mídia real, permissões de câmera/microfone e transmissão de tela entre participantes.
+- Chamadas com mídia real, permissões de câmera/microfone e transmissão de tela entre participantes; o áudio remoto no dock foi corrigido, mas ainda não validado com duas contas/dispositivos.
 - Compatibilidade entre navegadores reais e sistemas operacionais.
-- Entrega real de email via SMTP.
+- Entrega em caixa de entrada do Gmail/Outlook e reputação de longo prazo; a entrega externa em mail.tm e o relatório Mail-Tester 6/10 foram validados.
 - Instalação/execução da PWA em Android/iOS; no desktop, a distribuição validada é o `.exe`, não a instalação PWA.
 - Assinatura de código, reputação de SmartScreen, upgrade/downgrade e auto-update do aplicativo Windows.
 - Windows 11, Windows ARM64, macOS e Linux.
-- Servidor remoto real com DNS/TLS públicos e uso simultâneo entre dois computadores.
+- Uso simultâneo entre dois computadores no servidor remoto; o deploy HTTPS e os fluxos HTTP foram validados.
 - Mídia real e notificações nativas dentro do Electron.
 - Testes end-to-end de UI em navegador (Playwright/Cypress).
 - Carga, estresse, soak test e múltiplas instâncias.
@@ -262,7 +276,7 @@ Para o desktop, adicione um job em `windows-latest` que gere `client/dist`, exec
 1. Lint, typecheck, testes e build verdes.
 2. `npm audit --omit=dev` sem vulnerabilidades de runtime; advisories dev-only documentados.
 3. Smoke test de produção em HTTPS.
-4. SMTP real validado.
+4. Transporte real e entrega externa validados; alinhamento SPF/DKIM e caixas Gmail/Outlook pendentes.
 5. TURN validado entre duas redes.
 6. Chamada de áudio/vídeo testada em pelo menos dois dispositivos reais.
 7. Backup e restauração testados.

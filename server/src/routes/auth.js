@@ -3,7 +3,7 @@
 const express = require('express');
 const { validate } = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
-const { authLimiter } = require('../middleware/rateLimit');
+const { authLimiter, verificationResendLimiter } = require('../middleware/rateLimit');
 const { sameOrigin } = require('../middleware/http');
 const {
   registerSchema,
@@ -25,15 +25,12 @@ const RESERVED_USERNAMES = reservedUsernames;
 
 function issueVerification(db, userId) {
   const token = randomToken(32);
-  db.prepare('UPDATE email_verifications SET used_at = ? WHERE user_id = ? AND used_at IS NULL').run(
-    now(),
-    userId,
-  );
+  const verificationId = id();
   db.prepare(
     `INSERT INTO email_verifications (id, user_id, token_hash, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?)`,
-  ).run(id(), userId, sha256(token), now() + 24 * 60 * 60 * 1000, now());
-  return token;
+  ).run(verificationId, userId, sha256(token), now() + 24 * 60 * 60 * 1000, now());
+  return { id: verificationId, token };
 }
 
 function issuePasswordReset(db, userId) {
@@ -292,18 +289,38 @@ function createAuthRouter(db) {
     res.json({ ok: true, message: 'Email verificado' });
   });
 
-  router.post('/resend-verification', authenticate(db, config), authLimiter, async (req, res) => {
-    if (req.user.email_verified) {
-      throw errors.badRequest('Seu email já está verificado', 'ALREADY_VERIFIED');
-    }
-    const token = issueVerification(db, req.user.id);
-    const mail = await mailer.sendEmailVerification(req.user.email, req.user.display_name, token);
-    res.json({
-      ok: true,
-      delivered: mail.delivered,
-      ...(config.exposeDevTokens ? { token } : {}),
-    });
-  });
+  router.post(
+    '/resend-verification',
+    authenticate(db, config),
+    verificationResendLimiter,
+    async (req, res) => {
+      if (req.user.email_verified) {
+        throw errors.badRequest('Seu email já está verificado', 'ALREADY_VERIFIED');
+      }
+      const verification = issueVerification(db, req.user.id);
+      const mail = await mailer.sendEmailVerification(
+        req.user.email,
+        req.user.display_name,
+        verification.token,
+      );
+      const timestamp = now();
+      if (mail.delivered || config.exposeDevTokens) {
+        db.prepare(
+          'UPDATE email_verifications SET used_at = ? WHERE user_id = ? AND id <> ? AND used_at IS NULL',
+        ).run(timestamp, req.user.id, verification.id);
+      } else {
+        db.prepare('UPDATE email_verifications SET used_at = ? WHERE id = ?').run(
+          timestamp,
+          verification.id,
+        );
+      }
+      res.json({
+        ok: true,
+        delivered: mail.delivered,
+        ...(config.exposeDevTokens ? { token: verification.token } : {}),
+      });
+    },
+  );
 
   return router;
 }

@@ -296,14 +296,14 @@ O smoke remoto valida a interface e `/health`; ele não cria contas no banco rem
 
 ## Validação executada
 
-Data: **18/11/2026** (horário local), Windows 10 22H2 x64.
+Data: **19/11/2026** (horário local), Windows 10 22H2 x64.
 
 | Verificação | Resultado |
 | --- | --- |
-| `server`: lint + 17 testes | ✅ |
-| `client`: lint + typecheck + 13 testes + build | ✅ |
+| `server`: lint + 20 testes | ✅ |
+| `client`: lint + typecheck + 15 testes + build | ✅ |
 | `desktop`: `npm run check` | ✅ |
-| Smoke em Electron de desenvolvimento | ✅ |
+| Smoke em Electron de desenvolvimento (`smoke:voice`) | ✅ dock, expansão, HUD passivo/interativo, mute e saída |
 | Smoke no `win-unpacked` 1.2.0 (inclui voz/HUD) | ✅ `hudVisible`, `alwaysOnTop`, passivo `focusable:false`, interativo `focusable:true`, mute e saída |
 | Smoke no portátil 1.2.0 (inclui voz/HUD) | ✅ mesmos controles do `win-unpacked` |
 | Instalação silenciosa + smoke do app instalado (1.0.0) | ✅ execução anterior |

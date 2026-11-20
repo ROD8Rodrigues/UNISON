@@ -44,6 +44,44 @@ function VideoTile({
   return <video ref={ref} className={className} autoPlay playsInline muted={muted} />;
 }
 
+function AudioSink({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (element.srcObject !== stream) element.srcObject = stream;
+    element.play().catch(() => undefined);
+    return () => {
+      if (element.srcObject === stream) element.srcObject = null;
+    };
+  }, [stream]);
+
+  return <audio ref={ref} autoPlay playsInline hidden />;
+}
+
+/**
+ * Keeps remote audio mounted independently of the dock/full-window choice.
+ * Voice channels default to the compact dock, which does not render the
+ * call tiles; without this sink, remote audio stops as soon as the dock opens.
+ */
+function RemoteAudioSinks() {
+  const { activeCall, remoteStreams } = useCall();
+  const currentUserId = useAuthStore((state) => state.user?.id);
+  if (!activeCall) return null;
+
+  return (
+    <>
+      {activeCall.participants
+        .filter((participant) => participant.status === 'joined' && participant.userId !== currentUserId)
+        .map((participant) => {
+          const stream = remoteStreams[participant.userId];
+          return stream ? <AudioSink key={participant.userId} stream={stream} /> : null;
+        })}
+    </>
+  );
+}
+
 function LocalTile() {
   const {
     activeCall,
@@ -98,10 +136,9 @@ function RemoteTile({ userId, callKind }: { userId: string; callKind: 'audio' | 
   return (
     <div className="call-tile">
       {videoVisible ? (
-        <VideoTile stream={stream} muted={false} className="call-video" />
+        <VideoTile stream={stream} muted className="call-video" />
       ) : (
         <>
-          {stream && <VideoTile stream={stream} muted={false} className="call-video hidden-media" />}
           <div className="call-tile-empty">
             <Avatar
               name={participant?.displayName || participant?.username || 'Participante'}
@@ -311,6 +348,7 @@ export function CallOverlay() {
 
     return (
       <>
+        <RemoteAudioSinks />
         <VoiceOverlaySync pinned={voicePinned} onOpen={expandVoice} />
         {isVoiceChannel && !voiceExpanded ? (
           <VoiceDock

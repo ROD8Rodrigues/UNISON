@@ -162,6 +162,7 @@ export function SettingsPage() {
         bannerUrl: bannerUrl || null,
       });
       setUser(data.user);
+      useAppStore.getState().applyUserProfile(data.user);
       toast.success('Perfil atualizado');
     } catch (error) {
       if (error instanceof ApiError) {
@@ -301,12 +302,13 @@ export function SettingsPage() {
     try {
       const data = await api.post<{ delivered: boolean; token?: string }>('/auth/resend-verification');
       if (data.token) setVerificationToken(data.token);
-      toast.success(
-        data.delivered ? 'Email enviado' : 'Link de verificação gerado',
-        data.delivered
-          ? 'Confira sua caixa de entrada.'
-          : 'SMTP não está configurado neste ambiente. Use o link abaixo.',
-      );
+      if (data.delivered) {
+        toast.success('Solicitação de email aceita', 'Confira a caixa de entrada e a pasta de spam.');
+      } else if (data.token) {
+        toast.info('Link de verificação local gerado', 'O transporte de email não está disponível neste ambiente.');
+      } else {
+        toast.error('Email não enviado', 'O serviço de email não aceitou a mensagem. Tente novamente mais tarde.');
+      }
     } catch (error) {
       toast.error('Não foi possível reenviar', messageFor(error, 'Tente novamente.'));
     } finally {
